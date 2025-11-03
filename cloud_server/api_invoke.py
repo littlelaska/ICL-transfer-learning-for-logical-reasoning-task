@@ -11,7 +11,7 @@ class DatasetCotGen:
     def __init__(self, dataset_name, split="dev", all_data_switch=False, save_path="./results/", api_key=None):
         self.save_path = save_path
         self.dataset_name = dataset_name
-        if self.dataset_name not in ["ProntoQA", "LogicalDeduction", "FOLIO", "ProofWriter", "AR-LSAT"]:
+        if self.dataset_name not in ["ProntoQA", "LogicalDeduction", "FOLIO", "ProofWriter", "AR-LSAT", "gsm8k"]:
             raise ValueError(f"不支持的数据集名称：{self.dataset_name}，请使用支持的数据集名称。")
         elif self.dataset_name == "ProntoQA":
             self.dataset_path = "../data/ProntoQA"
@@ -23,6 +23,8 @@ class DatasetCotGen:
             self.dataset_path = "../data/ProofWriter"
         elif self.dataset_name == "AR-LSAT":
             self.dataset_path = "../data/AR-LSAT"
+        elif self.dataset_name == "gsm8k":
+            self.dataset_path = "../data/gsm8k"
         self.split = split
         # 开关决定是对所有数据进行处理还是对单条数据进行测试
         self.all_data_switch = all_data_switch
@@ -33,8 +35,13 @@ class DatasetCotGen:
         self.CLOUD_IP = "47.115.134.188"
         self.CLOUD_PORT = 13344
         self.task_instruction = "You are a careful reasoner. Think step by step with concise chain-of-thought. Then on a new line, output exactly: 'The correct option is: A' or 'The correct option is: B'"
+        self.gsm8k_instruction = "You are a careful reasoner. Solve the math problem step by step with chain-of-thought. Finally, provide the final answer on a new line starting with 'The final answer is: ' followed by the answer."
         
     def data_loader(self):
+        if self.dataset_name == "gsm8k":
+            with open(os.path.join(self.dataset_path, f"{self.split}.jsonl"), 'r') as f:
+                data = [json.loads(line) for line in f]
+            return data
         with open(os.path.join(self.dataset_path, f"{self.split}.json"), 'r') as f:
             data = json.load(f)
         return data
@@ -96,10 +103,14 @@ class DatasetCotGen:
         # exit()
         self.reachability_test()  # 测试联通性
         for item in tqdm(query_data):
-            context = item['context'].strip()
-            question = item['question'].strip()
-            options = "\n".join(opt.strip() for opt in item['options'])
-            request_query = self.task_instruction + f"Context:\n{context}\n\nQuestion: {question}\n\nOptions:\n {options}\n\n The correct option is:"
+            if self.dataset_name == "gsm8k":
+                question = item['question'].strip()
+                request_query = self.gsm8k_instruction + f"\nQuestion: {question}\nLet's think step by step."
+            else:
+                context = item['context'].strip()
+                question = item['question'].strip()
+                options = "\n".join(opt.strip() for opt in item['options'])
+                request_query = self.task_instruction + f"Context:\n{context}\n\nQuestion: {question}\n\nOptions:\n {options}\n\n The correct option is:"
             
             command = "[create_conversation=true]"
             # 调用接口获得结果
@@ -114,5 +125,5 @@ class DatasetCotGen:
 
 
 if __name__ == "__main__":
-    dataset_cot_gen = DatasetCotGen(dataset_name="ProofWriter", split="dev", all_data_switch=False, save_path="./results/")
+    dataset_cot_gen = DatasetCotGen(dataset_name="gsm8k", split="train", all_data_switch=False, save_path="./results/")
     dataset_cot_gen.retrieve_query_res(all_data_switch=True)
