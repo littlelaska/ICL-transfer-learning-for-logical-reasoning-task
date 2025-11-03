@@ -266,7 +266,11 @@ class LLM_Reasoning_Graph_Baseline:
             outputs = self.model_generate_batch(full_prompt)
             output = outputs[0]  # 取出单条数据的结果
             # get the answer
-            label_phrase = self.label_phrase    #  self.label_phrase = 'The correct option is:'
+            label_phrase = self.label_phrase    #  self.label_phrase = 'The correct option is:'        
+            if label_phrase in output:
+                label_phrase = label_phrase
+            elif label_phrase.lower in output:
+                label_phrase = label_phrase.lower()
             generated_answer = output.split(label_phrase)[-1].strip()
             generated_reasoning = output.split(label_phrase)[0].strip()
 
@@ -321,6 +325,11 @@ class LLM_Reasoning_Graph_Baseline:
 
     def update_answer(self, sample, output):
         label_phrase = self.label_phrase
+        if label_phrase in output:
+            label_phrase = label_phrase
+        elif label_phrase.lower() in output:
+            label_phrase = label_phrase.lower()
+            
         generated_answer = output.split(label_phrase)[-1].strip()
         generated_reasoning = output.split(label_phrase)[0].strip()
         dict_output = {'id': sample['id'], 
