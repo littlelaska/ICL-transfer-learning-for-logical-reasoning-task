@@ -56,6 +56,8 @@ class LLM_Reasoning_Graph_Baseline:
             self.model_path = "../llms/Qwen3-14B"
         elif self.model_name == "qwen3-32":
             self.model_path = "../llms/Qwen3-32B"
+        elif self.model_name == "llama3-8":
+            self.model_path = "../llms/llama3.1-8B-Instruct"
         else:
             self.model_path = "../llms/"
         self.tokenizer, self.model= self.load_model()

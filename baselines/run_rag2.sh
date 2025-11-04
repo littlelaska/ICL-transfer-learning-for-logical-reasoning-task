@@ -1,14 +1,15 @@
 MODE="RAG"
 DATASET_NAME="AR-LSAT"
 MODEL_NAME="qwen14"
-LANGCHAIN_DB="logicaldeduction"
+LANGCHAIN_DB="gsm8k"
 RAG_TOPK=10
-DEMONSTRATION_NUM=2
+DEMONSTRATION_NUM=1
+SPLIT="test"
 
-RUN_CMD="python llms_rag.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split dev --mode $MODE --max_new_tokens 1024 --batch_test --batch_size 16 --use_vllm --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --all_data_switch"
+RUN_CMD="python llms_rag.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 4096 --batch_test --batch_size 16 --use_vllm --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --all_data_switch"
 
 
-EVA_CMD="python evaluation.py --dataset_name $DATASET_NAME --model_name $MODEL_NAME --split dev --mode $MODE --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM"
+EVA_CMD="python evaluation.py --dataset_name $DATASET_NAME --model_name $MODEL_NAME --split $SPLIT --mode $MODE --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM"
 
 if [ "$ZERO_SHOT" = true ]; then
     RUN_CMD="$RUN_CMD --zero-shot"
