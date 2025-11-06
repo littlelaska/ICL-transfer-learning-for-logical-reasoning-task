@@ -114,26 +114,32 @@ class LLM_Reasoning_Graph_Baseline:
        
     # 针对zero-shot，直接生成prompt
     def prompt_LSAT_zero_shot(self, in_context_example, test_example):
-        context = test_example['context'].strip()
-        question = test_example['question'].strip()
-        options = '\n'.join([opt.strip() for opt in test_example['options']])
-        # laska 10.27测试逻辑prompt
-        if self.mode == 'Logical':
-            role_content = self.load_system_prompt()
-            full_prompt = f"Context: {context}\nQuestion: {question}\n"
-        elif self.mode == "Direct":
-            role_content = "Answer the question directly, directly give the answer option."
-            full_prompt = f"Context: {context}\nQuestion: {question}\nOptions:\n{options}\nPlease answer the question directly, directly give the answer option. The correct option is:"
-        elif self.mode == "CoT":
-            # role_content = "Answer the question, let's think step by step."
-            role_content = "You are a careful reasoner. Think step by step with concise chain-of-thought. Then on a new line, output exactly: 'The correct option is: A' or 'The correct option is: B"
-            full_prompt = f"Context: {context}\nQuestion: {question}\nOptions:\n{options}\nLet's think step by step. The correct option is:"
+        # 针对gsm8k的处理逻辑不一样
+        if self.dataset_name == "gsm8k":
+            question = test_example['question'].strip()
+            role_content = "You are a careful math reasoner. Solve step by step concisely.\nThen on a new line, output exactly: 'Final answer: <number>'."
+            full_prompt = f"Problem: {question}\nReasoning:"
+        else:  # 针对其他逻辑推理的数据集
+            context = test_example['context'].strip()
+            question = test_example['question'].strip()
+            options = '\n'.join([opt.strip() for opt in test_example['options']])
+            # laska 10.27测试逻辑prompt
+            if self.mode == 'Logical':
+                role_content = self.load_system_prompt()
+                full_prompt = f"Context: {context}\nQuestion: {question}\n"
+            elif self.mode == "Direct":
+                role_content = "Answer the question directly, directly give the answer option."
+                full_prompt = f"Context: {context}\nQuestion: {question}\nOptions:\n{options}\nPlease answer the question directly, directly give the answer option. The correct option is:"
+            elif self.mode == "CoT":
+                # role_content = "Answer the question, let's think step by step."
+                role_content = "You are a careful reasoner. Think step by step with concise chain-of-thought. Then on a new line, output exactly: 'The correct option is: A' or 'The correct option is: B"
+                full_prompt = f"Context: {context}\nQuestion: {question}\nOptions:\n{options}\nLet's think step by step. The correct option is:"
+
         messages = [
             {"role":"system", "content":role_content},  
             {"role":"user", "content": full_prompt}
             ]   
         return messages
-        return full_prompt
        
     # 针对few-shot的处理代码
     def load_in_context_examples(self):
@@ -142,6 +148,10 @@ class LLM_Reasoning_Graph_Baseline:
         return in_context_examples
 
     def load_raw_dataset(self, split):
+        if self.dataset_name == "gsm8k":
+            with open(os.path.join(self.data_path, self.dataset_name, f"{self.split}.jsonl"), 'r') as f:
+                raw_dataset = [json.loads(line) for line in f]
+            return raw_dataset
         with open(os.path.join(self.data_path, self.dataset_name, f'{split}.json')) as f:
             raw_dataset = json.load(f)
         return raw_dataset
@@ -276,7 +286,6 @@ class LLM_Reasoning_Graph_Baseline:
         with open(os.path.join(self.save_path, f'{self.mode}_{self.testing_type}_{self.dataset_name}_{self.split}_{self.model_name}.json'), 'w') as f:
             json.dump(outputs, f, indent=2, ensure_ascii=False)
 
-
     def batch_reasoning_graph_generation_ori(self, batch_size=10):
         # load raw dataset
         raw_dataset = self.load_raw_dataset(self.split)
@@ -314,23 +323,30 @@ class LLM_Reasoning_Graph_Baseline:
             json.dump(outputs, f, indent=2, ensure_ascii=False)
     
     def update_answer(self, sample, output):
-        if self.mode in ["Direct", "CoT"]:
-            label_phrase = self.label_phrase
-        elif self.mode in ["Logical"]:
-            label_phrase = "Answer:"
-        generated_answer = output.split(label_phrase)[-1].strip()
-        if generated_answer.lower() == "true":
-            generated_answer = "A"
-        elif generated_answer.lower() == "false":
-            generated_answer = "B"
-        generated_reasoning = output.split(label_phrase)[0].strip()
+        # 针对gsm8k是单独的处理
+        if self.dataset_name == "gsm8k":
+            label_phrase = "Final answer:"
+            generated_answer = output.split(label_phrase)[-1].strip().lstrip("<").rstrip(">")
+            generated_reasoning = output.split(label_phrase)[0].strip()
+        # 针对其他逻辑推理的数据集ProntoQA、ProofWriter等
+        else:    
+            if self.mode in ["Direct", "CoT"]:
+                label_phrase = self.label_phrase
+            elif self.mode in ["Logical"]:
+                label_phrase = "Answer:"
+        
+            generated_answer = output.split(label_phrase)[-1].strip()
+            if generated_answer.lower() == "true":
+                generated_answer = "A"
+            elif generated_answer.lower() == "false":
+                generated_answer = "B"
+            generated_reasoning = output.split(label_phrase)[0].strip()
         dict_output = {'id': sample['id'], 
                         'question': sample['question'], 
                         'answer': sample['answer'], 
                         'predicted_reasoning': generated_reasoning,
                         'predicted_answer': generated_answer,
                         'generation_context':output}
-
         return dict_output
 
 def parse_args():

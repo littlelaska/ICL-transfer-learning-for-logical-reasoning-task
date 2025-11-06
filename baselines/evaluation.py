@@ -1,6 +1,7 @@
 import re
 import json
 from tqdm import tqdm
+from typing import Dict, Any, List, Tuple
 import random
 import os
 import argparse
@@ -121,6 +122,74 @@ def evaluate_QA(result_file):
     print(f"EM: {avg_em}")
     print(f"wrong samples are {len(wrong_ids)}, ids are:\n", wrong_ids)
 
+
+def evaluate_gsm8k_exact(
+    json_path: str,
+    answer_key: str = "answer",
+    pred_key: str = "predicted_answer",
+    strip_whitespace: bool = True
+):
+    """
+    读取包含 GSM8K 样本的 JSON 文件，基于“精确匹配”计算准确率。
+    - 精确匹配：预测串与标注串完全一致（默认仅去掉首尾空白）。
+    - 不进行任何额外归一化（如去标点、提取数字、大小写转换等）。
+
+    参数：
+        json_path: JSON 文件路径。文件应为 list[dict] 结构。
+        answer_key: 标注答案字段名，默认 'answer'。
+        pred_key: 模型预测字段名，默认 'predicted_answer'。
+        strip_whitespace: 是否对两侧空白进行 strip，默认 True。
+
+    返回：
+        {
+            "total": int,              # 样本总数
+            "correct": int,            # 匹配正确的样本数
+            "accuracy": float,         # 准确率（0~1）
+            "mismatches": List[Tuple[int, str, str]]  # 前若干条不匹配样本：(索引, gold, pred)
+        }
+    """
+    with open(json_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    if not isinstance(data, list):
+        raise ValueError("JSON 顶层必须是列表（list[dict]）。")
+
+    total = 0
+    correct = 0
+    mismatches: List[Tuple[int, str, str]] = []
+
+    for i, item in enumerate(data):
+        if not isinstance(item, dict):
+            continue  # 跳过非法样本
+        if answer_key not in item or pred_key not in item:
+            continue  # 跳过缺字段样本
+
+        gold = item[answer_key]
+        pred = item[pred_key]
+
+        # 统一转成字符串进行比较（GSM8K 常为字符串，这里稳妥起见）
+        gold_s = "" if gold is None else str(gold)
+        pred_s = "" if pred is None else str(pred)
+
+        if strip_whitespace:
+            gold_s = gold_s.strip()
+            pred_s = pred_s.strip()
+
+        total += 1
+        if pred_s == gold_s:
+            correct += 1
+        else:
+            # 将错误的样例index进行保存
+            mismatches.append(i)
+
+    accuracy = (correct / total) if total > 0 else 0.0
+    return {
+        "total": total,
+        "correct": correct,
+        "accuracy": accuracy,
+        "mismatches": mismatches
+    }
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str)
@@ -145,5 +214,13 @@ if __name__ == "__main__":
         result_file = os.path.join(args.result_path, f'{args.mode}_{testing_type}_{args.dataset_name}_{args.split}_{args.model_name}.json')
     elif args.mode == "RAG":
         result_file = os.path.join(args.result_path, f'{args.mode}{args.icl_num}_{args.db_name}_{args.dataset_name}_{args.split}_{args.model_name}.json')
-    evaluate_QA(result_file)
+    if args.dataset_name == "gsm8k":
+        eval_result = evaluate_gsm8k_exact(result_file)
+        print("当前验证的文件为：", result_file)
+        print(f"GSM8K Exact Match Accuracy: {eval_result['accuracy']*100:.2f}% ({eval_result['correct']}/{eval_result['total']})")
+        if len(eval_result['mismatches']) > 0:
+            print("不匹配样本索引为：")
+            print(eval_result['mismatches'])
+    else:
+        evaluate_QA(result_file)
     print("当前验证的文件为：", result_file)

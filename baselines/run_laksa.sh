@@ -1,12 +1,12 @@
 MODE="CoT"    # cot/direct/logical
-DATASET_NAME="AR-LSAT"
-MODEL_NAME="llama3-8"
+DATASET_NAME="gsm8k"
+MODEL_NAME="qwen7"
 ZERO_SHOT=true
 SYSTEM_PROMPT_PATH="./system_prompt"
 PROMPT_FILE="logical_prompt_1.txt"
 SPLIT="test"
 
-RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --system_prompt_path  $SYSTEM_PROMPT_PATH --prompt_file $PROMPT_FILE --all_data_switch --batch_test --batch_size 16 --use_vllm"
+RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --system_prompt_path  $SYSTEM_PROMPT_PATH --prompt_file $PROMPT_FILE  --batch_test --batch_size 16 --use_vllm --all_data_switch"
 
 
 EVA_CMD="python evaluation.py --dataset_name $DATASET_NAME --model_name $MODEL_NAME --split $SPLIT --mode $MODE"
@@ -17,7 +17,7 @@ if [ "$ZERO_SHOT" = true ]; then
     
 fi
 echo "Running: $RUN_CMD"
-CUDA_VISIBLE_DEVICES=0,1,2,3 $RUN_CMD
+CUDA_VISIBLE_DEVICES=1,2 $RUN_CMD
 echo "Running: $EVA_CMD"
 $EVA_CMD
 
