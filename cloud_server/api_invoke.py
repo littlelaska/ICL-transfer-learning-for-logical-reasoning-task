@@ -14,17 +14,17 @@ class DatasetCotGen:
         if self.dataset_name not in ["ProntoQA", "LogicalDeduction", "FOLIO", "ProofWriter", "AR-LSAT", "gsm8k"]:
             raise ValueError(f"不支持的数据集名称：{self.dataset_name}，请使用支持的数据集名称。")
         elif self.dataset_name == "ProntoQA":
-            self.dataset_path = "../data/ProntoQA"
+            self.data_path = "../data/ProntoQA"
         elif self.dataset_name == "LogicalDeduction":
-            self.dataset_path = "../data/LogicalDeduction"
+            self.data_path = "../data/LogicalDeduction"
         elif self.dataset_name == "FOLIO":
-            self.dataset_path = "../data/FOLIO"
+            self.data_path = "../data/FOLIO"
         elif self.dataset_name == "ProofWriter":
-            self.dataset_path = "../data/ProofWriter"
+            self.data_path = "../data/ProofWriter"
         elif self.dataset_name == "AR-LSAT":
-            self.dataset_path = "../data/AR-LSAT"
+            self.data_path = "../data/AR-LSAT"
         elif self.dataset_name == "gsm8k":
-            self.dataset_path = "../data/gsm8k"
+            self.data_path = "../data/gsm8k"
         self.split = split
         # 开关决定是对所有数据进行处理还是对单条数据进行测试
         self.all_data_switch = all_data_switch
@@ -39,10 +39,10 @@ class DatasetCotGen:
         
     def data_loader(self):
         if self.dataset_name == "gsm8k":
-            with open(os.path.join(self.dataset_path, f"{self.split}.jsonl"), 'r') as f:
+            with open(os.path.join(self.data_path, f"{self.split}.jsonl"), 'r') as f:
                 data = [json.loads(line) for line in f]
             return data
-        with open(os.path.join(self.dataset_path, f"{self.split}.json"), 'r') as f:
+        with open(os.path.join(self.data_path, f"{self.split}.json"), 'r') as f:
             data = json.load(f)
         return data
      
@@ -82,7 +82,7 @@ class DatasetCotGen:
             query_data = [query_data[0]]  # 只测试第一条数据
         # 保存结果
         os.makedirs(self.save_path, exist_ok=True)
-        savefile_path = os.path.join(self.dataset_path, f"{self.dataset_name}_{self.split}_cot.json")
+        savefile_path = os.path.join(self.data_path, f"{self.dataset_name}_{self.split}_cot.json")
         # laska 10.29新增部分代码，支持断点续传
         if os.path.exists(savefile_path):
             with open(savefile_path, 'r') as sf:
