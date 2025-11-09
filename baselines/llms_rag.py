@@ -251,7 +251,7 @@ class LLM_Reasoning_Graph_Baseline:
 
         # load in-context examples
         # in_context_examples = self.load_in_context_examples()
-        in_context_examples = ""
+        in_context_example = ""
         
         outputs = []
         for example in tqdm(raw_dataset):

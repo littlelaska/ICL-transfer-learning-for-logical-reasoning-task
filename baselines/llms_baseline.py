@@ -7,6 +7,7 @@ import argparse
 # 尝试使用vllm加速模型推理
 from vllm import LLM, SamplingParams
 import torch
+from dataset_cons import DatasetRetriever
 
 class LLM_Reasoning_Graph_Baseline:
     def __init__(self, args):
@@ -17,27 +18,37 @@ class LLM_Reasoning_Graph_Baseline:
         self.model_name = args.model_name
         self.save_path = args.save_path
         self.demonstration_path = args.demonstration_path
-        self.mode = args.mode
-        #laska 新增部分
-        self.zero_shot = args.zero_shot
-        if self.zero_shot:
-            self.testing_type = "0-shot"
-        else:
-            self.testing_type = "few-shot"
+        self.mode = args.mode   # Direct /CoT /RAG
+
         self.all_data_switch = args.all_data_switch  # 是否对完整数据集进行测试
         self.batch_test = args.batch_test  # 是否进行batch测试
         self.batch_size = args.batch_size  # batch size大小
         self.vllm_switch = args.use_vllm  # 是否使用vllm进行加速
         self.max_new_tokens = args.max_new_tokens
-
+         
+        if self.mode == "RAG":   # 说明当前是rag模式，需要加载检索库
+            # RAG检索器加载部分
+            self.rag_topk = args.top_k   # 检索的样例个数
+            self.rag_icl_num = args.icl_num   # 用于上下文学习的展示样例个数  
+            self.db_name = args.db_name 
+            self.index_path = args.index_path
+            self.dataset_retriever = DatasetRetriever(index_path=self.index_path, db_name=self.db_name)
+        # 将zero-shot的逻辑也加到这里
+        elif self.zero_shot:
+            self.testing_type = "0-shot"
+        else:
+            self.testing_type = "few-shot"
+        # 打印部分参数
+        print("="*16+"parameteres"+"="*16)
+        print(f"batch_test:{self.batch_test}, zero_shot:{self.zero_shot}, demonstration_num:{self.rag_icl_num}, all_data_switch:{self.all_data_switch}, vllm_switch:{self.vllm_switch}, langchain_dataset_name:{self.db_name}, mode:{self.mode}")
+        print("="*16+"parameteres"+"="*16)
+        # !!!! 这部分代码需要修改
         # 增加system prompt的加载部分
         self.system_prompt_path = args.system_prompt_path
         self.prompt_file = args.prompt_file
         # 根据prompt type加载不同的system prompt
         self.system_prompt_file = os.path.join(self.system_prompt_path, self.prompt_file)
         print(f"system prompt file path: {self.system_prompt_file}")
-
-        print(f"batch_test:{self.batch_test}, zero_shot:{self.zero_shot}, all_data_switch:{self.all_data_switch}, vllm_switch:{self.vllm_switch}")
 
         # 加载模型 
         if self.model_name == "qwen7":
@@ -54,16 +65,34 @@ class LLM_Reasoning_Graph_Baseline:
             self.model_path = "../llms/llama3.1-8B-Instruct"
         else:
             self.model_path = "../llms/"
+        
         self.tokenizer, self.model= self.load_model()
         if not self.vllm_switch:
             self.device = self.model.device
         
-#         self.openai_api = OpenAIModel(args.api_key, args.model_name, args.stop_words, args.max_new_tokens)
-        if self.zero_shot:
+        # 待检查判断逻辑是否正确及完善
+        if self.mode == "RAG":
+            if self.rag_icl_num > 0:
+                self.prompt_creator = self.rag_prompt_creator
+            else:
+                self.prompt_creator = self.prompt_LSAT
+        elif self.zero_shot:
             self.prompt_creator = self.prompt_LSAT_zero_shot
         else:
             self.prompt_creator = self.prompt_LSAT
+
         self.label_phrase = 'The correct option is:'
+
+        # 统一定义存储路径
+        if self.mode == "RAG":
+            self.save_file = os.path.join(self.save_path, f'{self.mode}{self.rag_icl_num}_{self.db_name}_{self.dataset_name}_{self.split}_{self.model_name}.json')
+            # laska定义一个保存检索中间结果的文件
+            if not os.path.exists(self.rag_result_path):
+                os.makedirs(self.rag_result_path)
+            self.retrieval_save_file = os.path.join(self.rag_result_path, f'retrieval_{self.db_name}_{self.dataset_name}_{self.split}.json')   # 只与文件有关
+            self.retrieval_writer = open(self.retrieval_save_file, 'w') 
+        else:
+            self.save_file = os.path.join(self.save_path, f'{self.mode}_{self.testing_type}_{self.dataset_name}_{self.split}_{self.model_name}.json')
 
     # laska system prompt加载函数
     def load_system_prompt(self):
@@ -110,8 +139,51 @@ class LLM_Reasoning_Graph_Baseline:
             ]
         # laska 修改，针对本地模型，返回messages
         return messages
-        return full_prompt
-       
+
+    # laska 构建使用rag动态变化demonstration的prompt生成器
+    def rag_prompt_creator(self, in_context_example, test_example):
+        # 首先进行检索，得到相关的demonstration
+        query = test_example['question']
+        retrieved_results = self.dataset_retriever.retrieve(query, self.rag_topk)
+        # 制定一个template 
+        icl_template = "Context:\n{context}\nQuestion:\n{question}\nOptions:\n{options}\nReasoning:\n{cot}\nAnswer:\n{answer}\n"
+
+        overall_demonstration = ""
+        for result in retrieved_results[:self.rag_icl_num]:
+            overall_demonstration += icl_template.format(
+                context=result['context'],
+                question=result['question'],
+                options='\n'.join([opt.strip() for opt in result.get("options", [])]),
+                cot=result['cot'],
+                answer=result['answer']
+            ) + "\n"
+        head_template = "Given a problem statement as contexts, the task is to answer a logical reasoning question. \n------"
+        full_in_context_example = head_template + "\n" + overall_demonstration
+        # 将需要测试的内容进行拼接
+        test_template = "Context:\n{context}\nQuestion:\n{question}\nOptions:\n{options}\nReasoning:"
+#         print(test_example)
+#         print(test_example["context"])
+        test_example_str = test_template.format(context=test_example['context'],
+                                                question=test_example['question'],
+                                                options='\n'.join([opt.strip() for opt in test_example['options']]))
+        # 拼接成为最终给模型进行测试的样例
+        full_prompt = full_in_context_example + "\n" + test_example_str
+        role_content = "You are a logical task solver. Follow the demonstrationa to solve the new question. Remember to think step by step with concise chain-of-thought, and adhere to the context related to the question. Then on a new line, output exactly: 'The correct option is: A' or 'The correct option is: B"
+        messages = [
+            {"role":"system", "content":role_content},
+            {"role":"user", "content": full_prompt}
+            ]
+        # laska 修改，针对本地模型，返回messages
+        # 每检索一条，将检索结果写入文件
+        retrieval_record = {
+            'context': test_example['context'],
+            'question': test_example['question'],
+            'retrieved_demonstrations': full_in_context_example
+        }
+        # 写入json文件
+        self.retrieval_writer.write(json.dumps(retrieval_record, ensure_ascii=False) + '\n')
+        return messages
+
     # 针对zero-shot，直接生成prompt
     def prompt_LSAT_zero_shot(self, in_context_example, test_example):
         # 针对gsm8k的处理逻辑不一样
@@ -373,6 +445,12 @@ def parse_args():
     # 10.27 将system prompt放在文件中进行加载
     parser.add_argument('--system_prompt_path', type=str, default='./system_prompt')
     parser.add_argument('--prompt_file', help="定义system prompt的文件路径", type=str, default='logical_prompt_1.txt')
+    # 11.7 将rag功能直接加进来
+    parser.add_argument('--db_name', type=str, default='gsm8k', help="所使用的RAG db的名字")  # 用于检索的数据库名称
+    parser.add_argument('--index_path', type=str, default='../rag_db', help="RAG向量数据库的路径")  # RAG向量数据库的路径
+    parser.add_argument('--icl_num', type=int, default=0, help="RAG检索后使用的示例个数")  # RAG检索后使用的示例个数
+    parser.add_argument('--top_k', type=int, default=3, help="RAG检索的top k个数")  # RAG检索的top k个数
+    parser.add_argument('--rag_result_path', type=str, default='./rag_results', help="RAG检索中间结果的保存路径")  # RAG检索中间结果的保存路径
     args = parser.parse_args()
     return args
 

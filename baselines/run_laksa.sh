@@ -1,4 +1,4 @@
-MODE="CoT"    # cot/direct/logical
+MODE="CoT"    # cot/direct/RAG/logical
 DATASET_NAME="gsm8k"
 MODEL_NAME="qwen7"
 ZERO_SHOT=true
