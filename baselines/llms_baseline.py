@@ -19,13 +19,15 @@ class LLM_Reasoning_Graph_Baseline:
         self.save_path = args.save_path
         self.demonstration_path = args.demonstration_path
         self.mode = args.mode   # Direct /CoT /RAG
-
+        
         self.all_data_switch = args.all_data_switch  # 是否对完整数据集进行测试
         self.batch_test = args.batch_test  # 是否进行batch测试
         self.batch_size = args.batch_size  # batch size大小
         self.vllm_switch = args.use_vllm  # 是否使用vllm进行加速
         self.max_new_tokens = args.max_new_tokens
-         
+        self.zero_shot = args.zero_shot
+        self.rag_result_path = args.rag_result_path
+        
         if self.mode == "RAG":   # 说明当前是rag模式，需要加载检索库
             # RAG检索器加载部分
             self.rag_topk = args.top_k   # 检索的样例个数
@@ -434,7 +436,7 @@ def parse_args():
     parser.add_argument('--mode', type=str, help='Direct or CoT or logical', default='Direct')
     parser.add_argument('--max_new_tokens', type=int)
     # laska定义一个针对0-shot的代码
-    parser.add_argument('--zero-shot', default=False, action='store_true')
+    parser.add_argument('--zero_shot', default=False, action='store_true')
     # laska 定义一个batch测试的开关
     parser.add_argument('--batch_test', default=False, action='store_true')
     parser.add_argument('--batch_size', type=int, default='8')
