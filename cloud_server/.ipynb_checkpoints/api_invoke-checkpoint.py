@@ -1,0 +1,129 @@
+from cloud_task_client import *
+import cloud_task_client
+import argparse
+import time
+import os
+import json
+from tqdm import tqdm
+
+class DatasetCotGen:
+    """针对逻辑推理数据集进行 CoT 生成的类"""
+    def __init__(self, dataset_name, split="dev", all_data_switch=False, save_path="./results/", api_key=None):
+        self.save_path = save_path
+        self.dataset_name = dataset_name
+        if self.dataset_name not in ["ProntoQA", "LogicalDeduction", "FOLIO", "ProofWriter", "AR-LSAT", "gsm8k"]:
+            raise ValueError(f"不支持的数据集名称：{self.dataset_name}，请使用支持的数据集名称。")
+        elif self.dataset_name == "ProntoQA":
+            self.data_path = "../data/ProntoQA"
+        elif self.dataset_name == "LogicalDeduction":
+            self.data_path = "../data/LogicalDeduction"
+        elif self.dataset_name == "FOLIO":
+            self.data_path = "../data/FOLIO"
+        elif self.dataset_name == "ProofWriter":
+            self.data_path = "../data/ProofWriter"
+        elif self.dataset_name == "AR-LSAT":
+            self.data_path = "../data/AR-LSAT"
+        elif self.dataset_name == "gsm8k":
+            self.data_path = "../data/gsm8k"
+        self.split = split
+        # 开关决定是对所有数据进行处理还是对单条数据进行测试
+        self.all_data_switch = all_data_switch
+        if not api_key:
+            self.api_key = "TnumU6cM" #默认服务密钥
+        else:
+            self.api_key = api_key
+        self.CLOUD_IP = "47.115.134.188"
+        self.CLOUD_PORT = 13344
+        self.task_instruction = "You are a careful reasoner. Think step by step with concise chain-of-thought. Then on a new line, output exactly: 'The correct option is: A' or 'The correct option is: B'"
+        self.gsm8k_instruction = "You are a careful reasoner. Solve the math problem step by step with chain-of-thought. Finally, provide the final answer on a new line starting with 'The final answer is: ' followed by the answer."
+        
+    def data_loader(self):
+        if self.dataset_name == "gsm8k":
+            with open(os.path.join(self.data_path, f"{self.split}.jsonl"), 'r') as f:
+                data = [json.loads(line) for line in f]
+            return data
+        with open(os.path.join(self.data_path, f"{self.split}.json"), 'r') as f:
+            data = json.load(f)
+        return data
+     
+    # 连通性测试函数
+    def reachability_test(self):
+        backoff = 1.0
+        while not cloud_task_client._can_reach(CLOUD_IP, CLOUD_PORT, 2.0):
+            print(f"[WARN] 目标 {CLOUD_IP}:{CLOUD_PORT} 未连通，5s 后重试…")
+            time.sleep(backoff)
+            backoff = min(10.0, backoff * 1.7)  
+    
+    # 定义一个递归二分查找函数，判断哪些数据已经处理过了
+    def binary_search_recursive(self, arr, target_col_name, left=0, right=None):
+        """
+        在有序数组 arr 中递归查找 target。
+        """
+        if right is None:
+            right = len(arr) - 1
+        if left > right:
+            return -1
+        if left == right:
+            return left
+      
+        mid = (left + right) // 2
+        # print(type(arr[mid]))
+        # print(arr[mid])
+        if arr[mid][target_col_name].startswith("[ERROR]"):
+            return self.binary_search_recursive(arr, target_col_name, left, mid)
+        else:
+            return self.binary_search_recursive(arr, target_col_name, mid + 1, right)
+
+    # 定义一个请求入口
+    def retrieve_query_res(self, all_data_switch=None):
+        query_data = self.data_loader()
+        all_data_switch = all_data_switch if all_data_switch is not None else self.all_data_switch
+        if not all_data_switch:
+            query_data = [query_data[0]]  # 只测试第一条数据
+        # 保存结果
+        os.makedirs(self.save_path, exist_ok=True)
+        savefile_path = os.path.join(self.data_path, f"{self.dataset_name}_{self.split}_cot.json")
+        # laska 10.29新增部分代码，支持断点续传
+        if os.path.exists(savefile_path):
+            with open(savefile_path, 'r') as sf:
+                existing_results = json.load(sf)
+            existing_len = len(existing_results)
+            # 用递归查找的方式查找数据处理到哪一条了
+            existing_len = self.binary_search_recursive(
+                existing_results,
+                target_col_name="reasoning_cot"
+            )
+            existing_results = existing_results[:existing_len]
+            # print(existing_results[-1])
+            print(f"[INFO] 发现已存在的结果文件，已加载 {existing_len} 条结果，继续处理剩余数据…")
+            query_data = query_data[existing_len:]  # 只处理剩余的数据
+            print(len(existing_results)+len(query_data)) 
+        else:
+            existing_results = []
+        # exit()
+        self.reachability_test()  # 测试联通性
+        for item in tqdm(query_data):
+            if self.dataset_name == "gsm8k":
+                question = item['question'].strip()
+                request_query = self.gsm8k_instruction + f"\nQuestion: {question}\nLet's think step by step."
+            else:
+                context = item['context'].strip()
+                question = item['question'].strip()
+                options = "\n".join(opt.strip() for opt in item['options'])
+                request_query = self.task_instruction + f"Context:\n{context}\n\nQuestion: {question}\n\nOptions:\n {options}\n\n The correct option is:"
+            
+            command = "[create_conversation=true]"
+            # 调用接口获得结果
+            result = cloud_task_client.api(self.api_key, request_query + command)
+            print("\n[收到结果]：\n{}".format(result))
+            
+            item["reasoning_cot"] = result  # 将结果添加到当前数据项中
+            existing_results.append(item)
+            with open(savefile_path, 'w') as sf:
+                json.dump(existing_results, sf, indent=2, ensure_ascii=False)
+        print(f"[已保存结果至 {savefile_path}")
+
+
+if __name__ == "__main__":
+    dataset_cot_gen = DatasetCotGen(dataset_name="AR-LSAT", split="dev", all_data_switch=False, save_path="./results/")
+    dataset_cot_gen.retrieve_query_res(all_data_switch=True)
