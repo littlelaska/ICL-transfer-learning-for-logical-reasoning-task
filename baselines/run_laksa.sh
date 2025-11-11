@@ -1,7 +1,7 @@
 MODE="CoT"    # CoT/Direct/RAG/Logical
 DATASET_NAME="ProntoQA"
 MODEL_NAME="qwen7"
-SPLIT="test"
+SPLIT="dev"
 LANGCHAIN_DB="logicaldeduction"
 RAG_TOPK=10
 DEMONSTRATION_NUM=1
@@ -18,7 +18,7 @@ if [ "$ZERO_SHOT" = true ] && [ "$MODE" != "RAG" ]; then
     
 fi
 echo "Running: $RUN_CMD"
-CUDA_VISIBLE_DEVICES=1,4 $RUN_CMD
+CUDA_VISIBLE_DEVICES=0,1,2,3 $RUN_CMD
 echo "Running: $EVA_CMD"
 $EVA_CMD
 
