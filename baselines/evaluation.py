@@ -198,7 +198,7 @@ def parse_args():
     parser.add_argument('--split', type=str, default='dev')
     parser.add_argument('--result_path', type=str, default='./results')
     # laska 新增，针对不同的icl设置，文件名会有不同
-    parser.add_argument('--zero-shot', default=False, action='store_true')
+    parser.add_argument('--zero_shot', default=False, action='store_true')
     parser.add_argument('--db_name', type=str, default='gsm8k', help="所使用的RAG db的名字")  # 用于检索的数据库名称
     parser.add_argument('--icl_num', type=int, default=2, help="RAG检索后使用的示例个数")  # RAG检索后使用的示例个数
     args = parser.parse_args()

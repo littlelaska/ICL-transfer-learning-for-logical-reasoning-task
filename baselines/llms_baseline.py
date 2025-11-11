@@ -25,34 +25,23 @@ class LLM_Reasoning_Graph_Baseline:
         self.batch_size = args.batch_size  # batch size大小
         self.vllm_switch = args.use_vllm  # 是否使用vllm进行加速
         self.max_new_tokens = args.max_new_tokens
-        self.zero_shot = args.zero_shot
+        self.zero_shot = args.zero_shot   # 在非rag的模式下生效
         self.rag_result_path = args.rag_result_path
+        self.system_prompt_dir = args.system_prompt_dir
+        self.user_template_dir = args.user_template_dir
         
-        if self.mode == "RAG":   # 说明当前是rag模式，需要加载检索库
-            # RAG检索器加载部分
-            self.rag_topk = args.top_k   # 检索的样例个数
-            self.rag_icl_num = args.icl_num   # 用于上下文学习的展示样例个数  
-            self.db_name = args.db_name 
-            self.index_path = args.index_path
-            self.dataset_retriever = DatasetRetriever(index_path=self.index_path, db_name=self.db_name)
-        # 将zero-shot的逻辑也加到这里
-        elif self.zero_shot:
-            self.testing_type = "0-shot"
-        else:
-            self.testing_type = "few-shot"
-        # 打印部分参数
-        print("="*16+"parameteres"+"="*16)
-        print(f"batch_test:{self.batch_test}, zero_shot:{self.zero_shot}, demonstration_num:{self.rag_icl_num}, all_data_switch:{self.all_data_switch}, vllm_switch:{self.vllm_switch}, langchain_dataset_name:{self.db_name}, mode:{self.mode}")
-        print("="*16+"parameteres"+"="*16)
-        # !!!! 这部分代码需要修改
-        # 增加system prompt的加载部分
-        self.system_prompt_path = args.system_prompt_path
-        self.prompt_file = args.prompt_file
-        # 根据prompt type加载不同的system prompt
-        self.system_prompt_file = os.path.join(self.system_prompt_path, self.prompt_file)
-        print(f"system prompt file path: {self.system_prompt_file}")
+        # 对需要的部分数据进行初始化
+        self.para_init()
 
-        # 加载模型 
+        self.tokenizer, self.model= self.load_model()
+        if not self.vllm_switch:
+            self.device = self.model.device
+
+        self.label_phrase = 'The correct option is:'
+
+    # 2025.11.11 separate some init code from init
+    def para_init(self):
+        # 模型路径初始化
         if self.model_name == "qwen7":
             self.model_path = "../llms/Qwen2.5-7B-Instruct"
         elif self.model_name == "qwen14":
@@ -68,23 +57,46 @@ class LLM_Reasoning_Graph_Baseline:
         else:
             self.model_path = "../llms/"
         
-        self.tokenizer, self.model= self.load_model()
-        if not self.vllm_switch:
-            self.device = self.model.device
+        # role prompt 路径初始化
+        if self.dataset_name == "gsm8k":
+            self.prompt_file = f"{self.dataset_name}_{self.mode}{'_0shot' if self.zero_shot else ''}.txt"
+        else:
+            self.prompt_file = f"LogicalReasoning_{self.mode}{'_0shot' if self.zero_shot else ''}.txt"
+        self.system_prompt_path = os.path.join(self.system_prompt_dir, self.prompt_file)
+        print(f"system prompt file path: {self.system_prompt_path}")
         
-        # 待检查判断逻辑是否正确及完善
+        # user prompt路径初始化
+        self.user_prompt_path = os.path.join(self.user_template_dir, self.prompt_file)
+        print(f"user prompt file path: {self.user_prompt_path}")
+
+        # 针对不同mode的参数初始化
+        if self.mode == "RAG":   # 说明当前是rag模式，需要加载检索库
+            # RAG检索器加载部分
+            self.rag_topk = args.top_k   # 检索的样例个数
+            self.rag_icl_num = args.icl_num   # 用于上下文学习的展示样例个数  
+            self.db_name = args.db_name 
+            self.index_path = args.index_path
+            self.dataset_retriever = DatasetRetriever(index_path=self.index_path, db_name=self.db_name)
+        # 将zero-shot的逻辑也加到这里
+        elif self.zero_shot:
+            self.testing_type = "0-shot"
+        else:
+            self.testing_type = "few-shot"
+
+        # 待检查判断逻辑是否正确及完善， prompt creator初始化
         if self.mode == "RAG":
             if self.rag_icl_num > 0:
                 self.prompt_creator = self.rag_prompt_creator
             else:
                 self.prompt_creator = self.prompt_LSAT
-        elif self.zero_shot:
-            self.prompt_creator = self.prompt_LSAT_zero_shot
         else:
             self.prompt_creator = self.prompt_LSAT
+        # elif self.zero_shot:
+        #     self.prompt_creator = self.prompt_LSAT_zero_shot
+        # else:
+        #     self.prompt_creator = self.prompt_LSAT
 
-        self.label_phrase = 'The correct option is:'
-
+        # 结果存储路径初始化
         # 统一定义存储路径
         if self.mode == "RAG":
             self.save_file = os.path.join(self.save_path, f'{self.mode}{self.rag_icl_num}_{self.db_name}_{self.dataset_name}_{self.split}_{self.model_name}.json')
@@ -95,12 +107,28 @@ class LLM_Reasoning_Graph_Baseline:
             self.retrieval_writer = open(self.retrieval_save_file, 'w') 
         else:
             self.save_file = os.path.join(self.save_path, f'{self.mode}_{self.testing_type}_{self.dataset_name}_{self.split}_{self.model_name}.json')
+        
+        # 打印部分参数
+        print("="*16+"parameteres"+"="*16)
+        # print(f"batch_test:{self.batch_test}\n zero_shot:{self.zero_shot}\n demonstration_num:{self.rag_icl_num}\n all_data_switch:{self.all_data_switch}\n vllm_switch:{self.vllm_switch}\n langchain_dataset_name:{self.db_name}\n mode:{self.mode}")
+        self.print_self()
+        print("="*16+"parameteres"+"="*16)
+    # 打印参数
+    def print_self(self):
+        for k,v in self.__dict__.items():
+            print(f"{k}:{v}")
 
     # laska system prompt加载函数
     def load_system_prompt(self):
-        with open(self.system_prompt_file, 'r') as f:
+        with open(self.system_prompt_path, 'r') as f:
             system_prompt = f.read()
         return system_prompt
+
+    # 2025.11.11 加载user prompt的template部分，用于构建数据
+    def load_user_prompt_template(self):
+        with open(self.user_prompt_path, "r") as f:
+            user_prompt = f.read()
+        return user_prompt
 
     # laska 模型加载部分     
     def load_model(self):
@@ -119,28 +147,6 @@ class LLM_Reasoning_Graph_Baseline:
             model = AutoModelForCausalLM.from_pretrained(self.model_path, dtype="auto", device_map="auto")
             print("loading complete")
             return tokenizer, model
-
-    # 针对few-shot，生成prompt，该部分完成的是在单个样例之前添加few-shot的示例
-    def prompt_LSAT(self, in_context_example, test_example):
-        full_prompt = in_context_example
-        context = test_example['context'].strip()
-        question = test_example['question'].strip()
-        options = '\n'.join([opt.strip() for opt in test_example['options']])
-        full_prompt = full_prompt.replace('[[CONTEXT]]', context)
-        full_prompt = full_prompt.replace('[[QUESTION]]', question)
-        full_prompt = full_prompt.replace('[[OPTIONS]]', options)
-        # 针对role paly的模型，需要加上user等角色
-        if self.mode == "Direct":
-            role_content = "Answer the question directly, directly give the answer option."
-        elif self.mode == "CoT":
-            # role_content = "Answer the question, let's think step by step."
-            role_content = "You are a logical task solver. Follow the demonstrationa to solve the new question. Remember to think step by step with concise chain-of-thought, and adhere to the context related to the question. Then on a new line, output exactly: 'The correct option is: A' or 'The correct option is: B"
-        messages = [
-            {"role":"system", "content":role_content},
-            {"role":"user", "content": full_prompt}
-            ]
-        # laska 修改，针对本地模型，返回messages
-        return messages
 
     # laska 构建使用rag动态变化demonstration的prompt生成器
     def rag_prompt_creator(self, in_context_example, test_example):
@@ -185,29 +191,65 @@ class LLM_Reasoning_Graph_Baseline:
         # 写入json文件
         self.retrieval_writer.write(json.dumps(retrieval_record, ensure_ascii=False) + '\n')
         return messages
-
-    # 针对zero-shot，直接生成prompt
-    def prompt_LSAT_zero_shot(self, in_context_example, test_example):
+    
+    # 针对few-shot，生成prompt，该部分完成的是在单个样例之前添加few-shot的示例
+    def prompt_LSAT(self, in_context_example, test_example):
+        # 2025.11.11 add system prompt
+        role_content = self.load_system_prompt()
+        user_prompt_template = self.load_user_prompt_template()  # 目前这一部分的选择是不一样的
+        # 这一部分分支逻辑待验证代码正确性
+        if self.mode == "RAG":
+            full_prompt = user_prompt_template
+        elif self.zero_shot == True:
+            full_prompt = user_prompt_template
+        else:
+            full_prompt = in_context_example
+        
+        # 针对role paly的模型，需要加上user等角色
         # 针对gsm8k的处理逻辑不一样
         if self.dataset_name == "gsm8k":
             question = test_example['question'].strip()
-            role_content = "You are a careful math reasoner. Solve step by step concisely.\nThen on a new line, output exactly: 'Final answer: <number>'."
-            full_prompt = f"Problem: {question}\nReasoning:"
+            full_prompt = full_prompt.replace('[[QUESTION]]', question)
+        else:
+            context = test_example['context'].strip()
+            question = test_example['question'].strip()
+            options = '\n'.join([opt.strip() for opt in test_example['options']])
+            full_prompt = full_prompt.replace('[[CONTEXT]]', context)
+            full_prompt = full_prompt.replace('[[QUESTION]]', question)
+            full_prompt = full_prompt.replace('[[OPTIONS]]', options)
+        messages = [
+            {"role":"system", "content":role_content},
+            {"role":"user", "content": full_prompt}
+            ]
+        # laska 修改，针对本地模型，返回messages
+        return messages
+
+    # 针对zero-shot，直接生成prompt
+    def prompt_LSAT_zero_shot(self, in_context_example, test_example):
+        # 2025.11.11 add system prompt
+        role_content = self.load_system_prompt()
+        user_prompt_template = self.load_user_prompt_template()  # 目前这一部分的选择是不一样的
+        full_prompt = user_prompt_template
+        # 针对gsm8k的处理逻辑不一样
+        if self.dataset_name == "gsm8k":
+            question = test_example['question'].strip()
+            # full_prompt = f"Problem: {question}\nReasoning:"
+            full_prompt = full_prompt.replace('[[QUESTION]]', question)
         else:  # 针对其他逻辑推理的数据集
             context = test_example['context'].strip()
             question = test_example['question'].strip()
             options = '\n'.join([opt.strip() for opt in test_example['options']])
-            # laska 10.27测试逻辑prompt
-            if self.mode == 'Logical':
-                role_content = self.load_system_prompt()
-                full_prompt = f"Context: {context}\nQuestion: {question}\n"
-            elif self.mode == "Direct":
-                role_content = "Answer the question directly, directly give the answer option."
-                full_prompt = f"Context: {context}\nQuestion: {question}\nOptions:\n{options}\nPlease answer the question directly, directly give the answer option. The correct option is:"
-            elif self.mode == "CoT":
-                # role_content = "Answer the question, let's think step by step."
-                role_content = "You are a careful reasoner. Think step by step with concise chain-of-thought. Then on a new line, output exactly: 'The correct option is: A' or 'The correct option is: B"
-                full_prompt = f"Context: {context}\nQuestion: {question}\nOptions:\n{options}\nLet's think step by step. The correct option is:"
+            full_prompt = full_prompt.replace('[[CONTEXT]]', context)
+            full_prompt = full_prompt.replace('[[QUESTION]]', question)
+            full_prompt = full_prompt.replace('[[OPTIONS]]', options)
+            # # laska 10.27测试逻辑prompt
+            # if self.mode == 'Logical':
+            #     full_prompt = f"Context: {context}\nQuestion: {question}\n"
+            # elif self.mode == "Direct":
+            #     full_prompt = f"Context: {context}\nQuestion: {question}\nOptions:\n{options}\nPlease answer the question directly, directly give the answer option. The correct option is:"
+            # elif self.mode == "CoT":
+          
+            #     full_prompt = f"Context: {context}\nQuestion: {question}\nOptions:\n{options}\nLet's think step by step. The correct option is:"
 
         messages = [
             {"role":"system", "content":role_content},  
@@ -334,10 +376,11 @@ class LLM_Reasoning_Graph_Baseline:
         print(f"Loaded {len(raw_dataset)} examples from {self.split} split.")
 
         # load in-context examples,针对非0-shot的场景
-        if not self.zero_shot: 
+        if self.mode in ["CoT", "Direct"] and not self.zero_shot:    # rag形式需要自行查找context
             in_context_examples = self.load_in_context_examples()
         else:
             in_context_examples = ""
+            
         outputs = []
         # split dataset into chunks
         dataset_chunks = [raw_dataset[i:i + batch_size] for i in range(0, len(raw_dataset), batch_size)]
@@ -360,42 +403,6 @@ class LLM_Reasoning_Graph_Baseline:
         with open(os.path.join(self.save_path, f'{self.mode}_{self.testing_type}_{self.dataset_name}_{self.split}_{self.model_name}.json'), 'w') as f:
             json.dump(outputs, f, indent=2, ensure_ascii=False)
 
-    def batch_reasoning_graph_generation_ori(self, batch_size=10):
-        # load raw dataset
-        raw_dataset = self.load_raw_dataset(self.split)
-        print(f"Loaded {len(raw_dataset)} examples from {self.split} split.")
-
-        # load in-context examples
-        in_context_examples = self.load_in_context_examples()
-
-        outputs = []
-        # split dataset into chunks
-        dataset_chunks = [raw_dataset[i:i + batch_size] for i in range(0, len(raw_dataset), batch_size)]
-        for chunk in tqdm(dataset_chunks):
-            # create prompt
-            full_prompts = [self.prompt_creator(in_context_examples, example) for example in chunk]
-            try:
-                batch_outputs = self.openai_api.batch_generate(full_prompts)
-                # create output
-                for sample, output in zip(chunk, batch_outputs):
-                    # get the answer
-                    dict_output = self.update_answer(sample, output)
-                    outputs.append(dict_output)
-            except:
-                # generate one by one if batch generation fails
-                for sample, full_prompt in zip(chunk, full_prompts):
-                    try:
-                        output = self.openai_api.generate(full_prompt)
-                        # get the answer
-                        dict_output = self.update_answer(sample, output)
-                        outputs.append(dict_output)
-                    except:
-                        print('Error in generating example: ', sample['id'])
-
-        # save outputs        
-        with open(os.path.join(self.save_path, f'{self.mode}_{self.dataset_name}_{self.split}_{self.model_name}.json'), 'w') as f:
-            json.dump(outputs, f, indent=2, ensure_ascii=False)
-    
     def update_answer(self, sample, output):
         # 针对gsm8k是单独的处理
         if self.dataset_name == "gsm8k":
@@ -445,14 +452,16 @@ def parse_args():
     # laska 定义一个针对是否对完整数据集进行测试的开关
     parser.add_argument('--all_data_switch', help='当前是否需要对所有数据集进行测试(True)，还是测试代码功能(Fasle:只测试一条数据就可以)', default=False, action='store_true')
     # 10.27 将system prompt放在文件中进行加载
-    parser.add_argument('--system_prompt_path', type=str, default='./system_prompt')
-    parser.add_argument('--prompt_file', help="定义system prompt的文件路径", type=str, default='logical_prompt_1.txt')
+    parser.add_argument('--system_prompt_dir', type=str, default='./system_prompt', help="定义存放system prompt的文件路径")
+    # parser.add_argument('--prompt_file', help="定义system prompt的文件路径", type=str, default='logical_prompt_1.txt')
     # 11.7 将rag功能直接加进来
     parser.add_argument('--db_name', type=str, default='gsm8k', help="所使用的RAG db的名字")  # 用于检索的数据库名称
     parser.add_argument('--index_path', type=str, default='../rag_db', help="RAG向量数据库的路径")  # RAG向量数据库的路径
     parser.add_argument('--icl_num', type=int, default=0, help="RAG检索后使用的示例个数")  # RAG检索后使用的示例个数
     parser.add_argument('--top_k', type=int, default=3, help="RAG检索的top k个数")  # RAG检索的top k个数
     parser.add_argument('--rag_result_path', type=str, default='./rag_results', help="RAG检索中间结果的保存路径")  # RAG检索中间结果的保存路径
+    # 2025.11.11 user_template_dir
+    parser.add_argument("--user_template_dir", type=str, default="./user_template", help="用于存放user template文件的dir路径")
     args = parser.parse_args()
     return args
 

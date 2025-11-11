@@ -1,0 +1,4 @@
+Context: [[CONTEXT]]
+Question: [[QUESTION]]
+Options:\n[[OPTIONS]]
+Let's think step by step. The correct option is:
