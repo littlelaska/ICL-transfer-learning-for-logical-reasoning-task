@@ -125,6 +125,7 @@ class LLM_Reasoning_Graph_Baseline:
             {"role":"system", "content":role_content},
             {"role":"user", "content": full_prompt}
             ]
+#         print(messages)
         # laska 修改，针对本地模型，返回messages
         # 每检索一条，将检索结果写入文件
         retrieval_record = {

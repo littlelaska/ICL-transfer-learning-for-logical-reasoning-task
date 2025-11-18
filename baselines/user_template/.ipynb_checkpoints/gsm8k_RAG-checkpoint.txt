@@ -1,0 +1,6 @@
+Given a problem statement, the task is to answer a math question. 
+------
+[[DEMONSTRATIONS]]
+------
+Problem: [[QUESTION]]
+Reasoning:
