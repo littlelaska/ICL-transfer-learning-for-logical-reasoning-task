@@ -460,7 +460,9 @@ class LLM_Reasoning_Graph_Baseline:
                 label_phrase = self.label_phrase
             elif self.mode in ["Logical"]:
                 label_phrase = "Answer:"
-        
+                
+            if label_phrase not in output and label_phrase.lower() in output:
+                label_phrase = label_phrase.lower()
             generated_answer = output.split(label_phrase)[-1].strip()
             if generated_answer.lower() == "true":
                 generated_answer = "A"

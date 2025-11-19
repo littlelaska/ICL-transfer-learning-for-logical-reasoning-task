@@ -1,11 +1,11 @@
-MODE="RAG"    # CoT/Direct/RAG/Logical
-DATASET_NAME="ProntoQA"
+MODE="CoT"    # CoT/Direct/RAG/Logical
+DATASET_NAME="LogicalDeduction"
 MODEL_NAME="qwen7"
 SPLIT="dev"
 LANGCHAIN_DB="gsm8k"
 RAG_TOPK=10
-DEMONSTRATION_NUM=4
-ZERO_SHOT=true
+DEMONSTRATION_NUM=1
+ZERO_SHOT=false
 
 RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --batch_test --batch_size 16 --use_vllm --all_data_switch"
 

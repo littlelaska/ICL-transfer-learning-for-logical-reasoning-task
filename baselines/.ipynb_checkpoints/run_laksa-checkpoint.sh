@@ -1,5 +1,5 @@
-MODE="RAG"    # CoT/Direct/RAG/Logical
-DATASET_NAME="ProofWriter"
+MODE="CoT"    # CoT/Direct/RAG/Logical
+DATASET_NAME="AR-LSAT"
 MODEL_NAME="qwen7"
 SPLIT="test"
 LANGCHAIN_DB="gsm8k"
