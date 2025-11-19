@@ -1,10 +1,10 @@
 MODE="RAG"    # CoT/Direct/RAG/Logical
-DATASET_NAME="gsm8k"
+DATASET_NAME="ProofWriter"
 MODEL_NAME="qwen7"
 SPLIT="test"
-LANGCHAIN_DB="logicaldeduction"
+LANGCHAIN_DB="gsm8k"
 RAG_TOPK=10
-DEMONSTRATION_NUM=2
+DEMONSTRATION_NUM=1
 ZERO_SHOT=true
 
 RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --batch_test --batch_size 16 --use_vllm --all_data_switch"
