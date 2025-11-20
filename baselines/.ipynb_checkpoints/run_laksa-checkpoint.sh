@@ -2,9 +2,9 @@ MODE="RAG"    # CoT/Direct/RAG/Logical
 DATASET_NAME="ProntoQA"
 MODEL_NAME="qwen14"
 SPLIT="dev"
-LANGCHAIN_DB="gsm8k"
+LANGCHAIN_DB="FOLIO"
 RAG_TOPK=10
-DEMONSTRATION_NUM=2
+DEMONSTRATION_NUM=4
 ZERO_SHOT=false
 
 RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --batch_test --batch_size 16 --use_vllm --all_data_switch"

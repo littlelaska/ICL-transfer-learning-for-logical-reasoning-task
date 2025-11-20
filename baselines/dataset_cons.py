@@ -197,9 +197,12 @@ if __name__ == "__main__":
     
 #     dataset_cons = DatasetCons(dataset_name="FOLIO", ds_cot=True, data_path=data_path, )
 #     dataset_cons.build_vector_store("../rag_db", "train")
-
+      
+    dataset_cons = DatasetCons(dataset_name="ProofWriter", ds_cot=True,data_path=data_path)
+    dataset_cons.build_vector_store("../rag_db", "train")
     # 利用构建好的检索向量数据库进行实验
     dataset_retriever = DatasetRetriever(index_path="../rag_db", db_name="ProntoQA")
+    dataset_retriever = DatasetRetriever(index_path="../rag_db", db_name="ProofWriter")
 #     dataset_retriever = DatasetRetriever(index_path="../rag_db", db_name="LogicalDeduction")
 #     dataset_retriever = DatasetRetriever(index_path="../rag_db", db_name="FOLIO")
 #     dataset_retriever = DatasetRetriever(index_path="../rag_db", db_name="gsm8k")
