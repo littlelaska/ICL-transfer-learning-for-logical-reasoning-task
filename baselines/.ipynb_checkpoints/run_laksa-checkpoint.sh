@@ -1,13 +1,13 @@
 MODE="RAG"    # CoT/Direct/RAG/Logical
-DATASET_NAME="ProntoQA"
+DATASET_NAME="LogicalDeduction"
 MODEL_NAME="qwen14"
 SPLIT="dev"
-LANGCHAIN_DB="FOLIO"
+LANGCHAIN_DB="ProofWriter"
 RAG_TOPK=10
 DEMONSTRATION_NUM=4
 ZERO_SHOT=false
 
-RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --batch_test --batch_size 16 --use_vllm --all_data_switch"
+RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --batch_test --batch_size 8 --use_vllm --all_data_switch"
 
 
 EVA_CMD="python evaluation.py --dataset_name $DATASET_NAME --model_name $MODEL_NAME --split $SPLIT --mode $MODE  --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM"
