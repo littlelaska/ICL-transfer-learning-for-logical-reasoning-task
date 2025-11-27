@@ -1,10 +1,10 @@
 MODE="RAG"
-DATASET_NAME="ProntoQA"
+DATASET_NAME="FOLIO"
 MODEL_NAME="qwen7"
 SPLIT="dev"
-LANGCHAIN_DB="logicaldeduction"
+LANGCHAIN_DB="gsm8k"
 RAG_TOPK=10
-DEMONSTRATION_NUM=1
+DEMONSTRATION_NUM=4
 
 RUN_CMD="python llms_rag.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 1024 --batch_test --batch_size 16 --use_vllm --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK "
 

@@ -16,11 +16,24 @@ class DatasetCons:
         self.embedding_path = "../llms/text2vec-large-chinese"
         # self.embedding_model_name = embedding_model_name
         self.embedding = HuggingFaceEmbeddings(model_name=self.embedding_path)   # 直接本地加载
+        self.label_phrases = ["The correct option is:", "the correct option is:", "The final answer is:", "the final answer is:"]
+    
+    # 20251127 添加一个对错误数据删除的逻辑
+    def wrong_cot_filter(self, answer, cot):
+        keep_flag = False   # 是否保留当前数据的标志位
+        for label_phrase in self.label_phrases:
+            if label_phrase not in cot:
+                continue
+            else:
+                cot_answer = cot.split(label_phrase)[-1].strip()
+                if cot_answer == answer:
+                    keep_flag = True
+        return keep_flag
 
     def gsm8k_load_data(self, split="test"):
         "加载gsm8k数据集"
         "split可选 train test"
-        print("current loading function is gsm8k_load_data\(\)")
+        print("current loading function is gsm8k_load_data")
         # data_file = Path(self.data_path) / f"{self.dataset_name}.txt"
         data_file = Path(self.data_path) / f"{split}.jsonl"
         if not os.path.exists(data_file):
@@ -44,7 +57,7 @@ class DatasetCons:
     # 10.29 加载LogicalDeduction数据集
     def logicaldeduction_load_data(self, split="train"):
         "加载LogicalDeduction数据集，可选train 和dev数据集"
-        print("current loading function is logicaldeduction_load_data\(\)")
+        print("current loading function is logicaldeduction_load_data")
         data_file = Path(self.data_path) / f"LogicalDeduction_{split}_cot.json"
         if not os.path.exists(data_file):
             raise FileNotFoundError(f"Data file {data_file} does not exist.")
@@ -60,12 +73,16 @@ class DatasetCons:
                 cot = item.get("reasoning_cot", "")
                 # full_prompt = f"Context: {context}\nQuestion: {question}\nExplanation: {explanation}"
                 full_prompt = f"Context: {context}\nQuestion: {question}\n"
+                # 添加筛选数据的逻辑
+                keep_flag = self.wrong_cot_filter(answer, cot)
+                if not keep_flag:
+                    continue
                 documents.append(Document(page_content=full_prompt, metadata={"answer": answer, "cot": cot, "question": question, "context": context, "options": options}))
         return documents
     
     # 20251119 构建一个逻辑推理任务通用的load_data
     def logical_task_common_cot_load_data(self, split="train"):
-        print("current loading function is logical_task_common_cot_load_data\(\)")
+        print("current loading function is logical_task_common_cot_load_data")
         data_file = Path(self.data_path) / f"{self.dataset_name}_{split}_cot.json"
         if not os.path.exists(data_file):
             raise FileNotFoundError(f"Data file {data_file} does not exist.")
@@ -79,6 +96,10 @@ class DatasetCons:
                 options = item.get("options", "")
                 answer = item.get("answer", "")
                 cot = item.get("reasoning_cot", "")
+                # 添加筛选数据的逻辑
+                keep_flag = self.wrong_cot_filter(answer, cot)
+                if not keep_flag:
+                    continue
                 # full_prompt = f"Context: {context}\nQuestion: {question}\nExplanation: {explanation}"
                 full_prompt = f"Context: {context}\nQuestion: {question}\n"
                 documents.append(Document(page_content=full_prompt, metadata={"answer": answer, "cot": cot, "question": question, "context": context, "options": options}))
@@ -88,7 +109,7 @@ class DatasetCons:
     def prontoqa_load_data(self, split="dev"):
         "加载prontoqa数据集"
         "split可选 dev"
-        print("current loading function is prontoqa_load_data\(\)")
+        print("current loading function is prontoqa_load_data")
         data_file = Path(self.data_path) / f"{split}.json"
         if not os.path.exists(data_file):
             raise FileNotFoundError(f"Data file {data_file} does not exist.")
@@ -111,6 +132,7 @@ class DatasetCons:
         if self.dataset_name not in ["ProntoQA","AR-LSAT","ProofWriter", "LogicalDeduction","FOLIO", "gsm8k"]:
             print(f"the wrong dataset {self.dataset_name} were provided. Ended the program!")
             return
+        # 加载调用deepseek端口的cot
         if self.ds_cot==True and self.dataset_name in ["ProntoQA","AR-LSAT","ProofWriter", "LogicalDeduction","FOLIO"]:
             load_fn = self.logical_task_common_cot_load_data
         elif self.dataset_name in ["gsm8k", "ProntoQA"]:
