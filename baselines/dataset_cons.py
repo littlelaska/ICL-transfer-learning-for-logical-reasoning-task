@@ -3,19 +3,27 @@ from pathlib import Path
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import faiss
+from langchain_community.retrievers import BM25Retriever
+import pickle
 import json
 import os 
+import argparse
+
+embedding_path = "../llms/text2vec-large-chinese"
+
 
 # 将gsm8k或者其他数据集构建处理成向量库
 class DatasetCons:
-    def __init__(self, dataset_name, data_path, ds_cot=True, embedding_model_name="GanymedeNil/text2vec-large-chinese"):
-        self.dataset_name = dataset_name
-        self.data_path = data_path
-        self.ds_cot = ds_cot   # 这个参数主要是针对gsm8k和ProntoQA数据集，这两个数据集有自己的cot，该参数设置为true时，就使用ds接口生成的cot来构建langchian数据集，为false时，使用这两个数据集默认的cot
-    
+    def __init__(self, args):
+        self.dataset_name = args.dataset_name
+        self.data_path = "../rag_data"
+        self.ds_cot = args.ds_cot    # 这个参数主要是针对gsm8k和ProntoQA数据集，这两个数据集有自己的cot，该参数设置为true时，就使用ds接口生成的cot来构建langchian数据集，为false时，使用这两个数据集默认的cot
         self.embedding_path = "../llms/text2vec-large-chinese"
-        # self.embedding_model_name = embedding_model_name
-        self.embedding = HuggingFaceEmbeddings(model_name=self.embedding_path)   # 直接本地加载
+        self.db_type = args.db_type    # 可选值有embedding bm25，默认是bm25
+        self.bm25_file = "bm25_index.pkl"
+        self.topk = args.topk
+        self.split = args.db_split
+        self.langchain_db_dir = "../rag_db"  # 用于存放langchain dataset的路径
         self.label_phrases = ["The correct option is:", "the correct option is:", "The final answer is:", "the final answer is:"]
     
     # 20251127 添加一个对错误数据删除的逻辑
@@ -30,11 +38,11 @@ class DatasetCons:
                     keep_flag = True
         return keep_flag
 
-    def gsm8k_load_data(self, split="test"):
+    def gsm8k_load_data(self, split="train"):
         "加载gsm8k数据集"
         "split可选 train test"
         print("current loading function is gsm8k_load_data")
-        # data_file = Path(self.data_path) / f"{self.dataset_name}.txt"
+        # data_file = Path(self.data_path) / f"{self.dataset_name}/{split}.jsonl"
         data_file = Path(self.data_path) / f"{split}.jsonl"
         if not os.path.exists(data_file):
             raise FileNotFoundError(f"Data file {data_file} does not exist.")
@@ -106,7 +114,7 @@ class DatasetCons:
         return documents
     
     # 10.26 加载逻辑语言的数据集（这个数据集的explanation用的是数据本身提供的，而非ds生成cot）
-    def prontoqa_load_data(self, split="dev"):
+    def ProntoQA_load_data(self, split="dev"):
         "加载prontoqa数据集"
         "split可选 dev"
         print("current loading function is prontoqa_load_data")
@@ -128,7 +136,7 @@ class DatasetCons:
                 documents.append(Document(page_content=full_prompt, metadata={"answer": answer, "explanation": explanation, "question": question, "context": context, "options": options}))
         return documents
 
-    def build_vector_store(self, index_path, split="dev"):
+    def build_vector_store(self):
         if self.dataset_name not in ["ProntoQA","AR-LSAT","ProofWriter", "LogicalDeduction","FOLIO", "gsm8k"]:
             print(f"the wrong dataset {self.dataset_name} were provided. Ended the program!")
             return
@@ -143,30 +151,59 @@ class DatasetCons:
 #             load_fn = getattr(self, f"{self.dataset_name}_load_data")
 #         except AttributeError:
 #             raise ValueError(f"Unknown dataset: {self.dataset_name}")
-        documents = load_fn(split)
+        # documents = load_fn(self.split)
+        documents = load_fn()
         print("the langchain documents num is :", len(documents))
         # exit()
-        save_index_path = Path(index_path) / f"{self.dataset_name}"
+        save_index_path = Path(self.langchain_db_dir) / f"{self.dataset_name}"
+        
         if not os.path.exists(save_index_path):
             os.makedirs(save_index_path)
-        index_path = str(save_index_path)
-        vector_store = faiss.FAISS.from_documents(documents, self.embedding)
-        vector_store.save_local(save_index_path)
-        print(f"Vector store saved to {save_index_path}")
+        if self.db_type== "embedding":
+            self.embedding = HuggingFaceEmbeddings(model_name=self.embedding_path)   # 直接本地加载
+            vector_store = faiss.FAISS.from_documents(documents, self.embedding)
+            vector_store.save_local(save_index_path)
+            print(f"Embedding Vector store saved to {save_index_path}")
+        elif self.db_type == "bm25":
+            save_pickle_path = Path(save_index_path) / self.bm25_file
+            retriever = BM25Retriever.from_documents(documents, k=self.topk+1)
+            with open(save_pickle_path, "wb") as f:
+                pickle.dump(retriever, f)
+            print(f"BM25 Vector store saved to {save_pickle_path}")
+        else:
+            raise ValueError(f"not a valid db_type: {self.db_type}! must be embedding or bm25")
 
 # 构建一个利用langchain数据库进行处理的类
 class DatasetRetriever:
-    def __init__(self, index_path, db_name, embedding_model_name="GanymedeNil/text2vec-large-chinese"):
+    def __init__(self, args):
         self.embedding_path = "../llms/text2vec-large-chinese"
-        # self.embedding_model_name = embedding_model_name
-        self.db_name = db_name   # 用于进行搜索任务的db名
-        self.embedding = HuggingFaceEmbeddings(model_name=self.embedding_path)   # 直接本地加载
-        # 载入本地faiss向量数据库
-        index_path = Path(index_path) / f"{self.db_name}"
-        self.vector_store = faiss.FAISS.load_local(index_path, self.embedding, allow_dangerous_deserialization=True)
+        self.db_name = args.db_name   # 作为外部demonstration的检索库
+        self.db_type = args.db_type
+        self.langchain_db_path = Path("../rag_db") / f"{self.db_name}"
+        self.bm25_file = "bm25_index.pkl"
+        self.topk = args.topk
+        # 初始化向量数据库
+        self.retriever_init()        
+    
+    # 20251128按照检索器类型，对检索器进行初始化
+    def retriever_init(self):
+        if self.db_type == "embedding":
+            # 载入本地faiss向量数据库
+            self.embedding = HuggingFaceEmbeddings(model_name = self.embedding_path)
+            self.vector_store = faiss.FAISS.load_local(self.langchain_db_path, self.embedding, allow_dangerous_deserialization=True)
+        elif self.db_type == "bm25":
+            # 载入本地bm25 pickle数据库
+            pickle_file = Path(self.langchain_db_path) / self.bm25_file
+            with open(pickle_file, "rb") as f:
+                self.retriever = pickle.load(f)
+        else:
+            raise ValueError(f"not a valid db_type: {self.db_type}! must be embedding or bm25")
 
-    def retrieve(self, query, k=5):
-        results = self.vector_store.similarity_search(query, k=k)
+    def retrieve(self, query):
+        if self.db_type == "embedding":
+            results = self.vector_store.similarity_search(query, k=self.topk)
+        elif self.db_type == "bm25":
+            results = self.retriever.invoke(query)
         retrieve_list = []
         for i, doc in enumerate(results):
             # print(f"Result {i+1}:")
@@ -204,34 +241,33 @@ class DatasetRetriever:
             })
         return retrieve_list
 
+# 添加parse处理参数
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--db_type", type=str, help="可选的langchain db类型，embedding或者bm25", default="embedding")
+    parser.add_argument("--dataset_name", type=str, help="构建langchain db的数据集名字", default="gsm8k")
+    parser.add_argument("--ds_cot", help="是否使用ds接口生成的cot，还是用默认的数据,gsm8k和prontoQA有两种数据形式",default=False, action="store_true")
+    parser.add_argument("--db_split", type=str, help="所使用的数据集split", default="train")
+    parser.add_argument("--topk",type=int, help="检索时返回的topk样例个数", default=3)
+    parser.add_argument("--db_name", type=str, help="langchain数据库的名字，主要是检索时用，区分源、目标域")
+    args = parser.parse_args()
+    return args
+
 if __name__ == "__main__":
+    args = parse_args()
     # 构建langchain检索向量数据库
     # laska 修改使用逻辑语言来进行icl
     data_path = "../rag_data"
-#     dataset_cons = DatasetCons(dataset_name="gsm8k", data_path="../data/gsm8k")
-#     dataset_cons.build_vector_store("../rag_db","train")
+    dataset_cons = DatasetCons(args)
+    dataset_cons.build_vector_store()
 
-#     dataset_cons = DatasetCons(dataset_name="ProntoQA", data_path="../data/ProntoQA")
-#     dataset_cons.build_vector_store("../rag_db","dev")
-    
-#     dataset_cons = DatasetCons(dataset_name="LogicalDeduction", ds_cot=True,data_path=data_path, )
-#     dataset_cons.build_vector_store("../rag_db", "dev")
-    
-#     dataset_cons = DatasetCons(dataset_name="FOLIO", ds_cot=True, data_path=data_path, )
-#     dataset_cons.build_vector_store("../rag_db", "train")
-      
-    dataset_cons = DatasetCons(dataset_name="ProofWriter", ds_cot=True,data_path=data_path)
-    dataset_cons.build_vector_store("../rag_db", "train")
     # 利用构建好的检索向量数据库进行实验
-    dataset_retriever = DatasetRetriever(index_path="../rag_db", db_name="ProntoQA")
-    dataset_retriever = DatasetRetriever(index_path="../rag_db", db_name="ProofWriter")
-#     dataset_retriever = DatasetRetriever(index_path="../rag_db", db_name="LogicalDeduction")
-#     dataset_retriever = DatasetRetriever(index_path="../rag_db", db_name="FOLIO")
-#     dataset_retriever = DatasetRetriever(index_path="../rag_db", db_name="gsm8k")
+    dataset_retriever = DatasetRetriever(args)
+
     context = "Jompuses are not shy. Jompuses are yumpuses. Each yumpus is aggressive. Each yumpus is a dumpus. Dumpuses are not wooden. Dumpuses are wumpuses. Wumpuses are red. Every wumpus is an impus. Each impus is opaque. Impuses are tumpuses. Numpuses are sour. Tumpuses are not sour. Tumpuses are vumpuses. Vumpuses are earthy. Every vumpus is a zumpus. Zumpuses are small. Zumpuses are rompuses. Max is a yumpus."
     question = "Is the following statement true or false? Max is sour."
     query = f"Context: {context}\nQuestion: {question}\n"
-    results = dataset_retriever.retrieve(query, k=3)
+    results = dataset_retriever.retrieve(query)
     print(results)
     print(len(results))
 
