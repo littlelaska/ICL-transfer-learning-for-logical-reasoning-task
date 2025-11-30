@@ -2,3 +2,5 @@ llms/
 rag_db/
 baselines/results/
 baselines/rag_results/
+baselines/logs
+.ipynb_checkpoints/
