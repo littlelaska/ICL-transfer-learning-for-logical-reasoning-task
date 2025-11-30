@@ -21,7 +21,7 @@ class DatasetCons:
         self.embedding_path = "../llms/text2vec-large-chinese"
         self.db_type = args.db_type    # 可选值有embedding bm25，默认是bm25
         self.bm25_file = "bm25_index.pkl"
-        self.topk = args.topk
+        self.top_k = args.top_k
         self.split = args.db_split
         self.langchain_db_dir = "../rag_db"  # 用于存放langchain dataset的路径
         self.label_phrases = ["The correct option is:", "the correct option is:", "The final answer is:", "the final answer is:"]
@@ -166,7 +166,7 @@ class DatasetCons:
             print(f"Embedding Vector store saved to {save_index_path}")
         elif self.db_type == "bm25":
             save_pickle_path = Path(save_index_path) / self.bm25_file
-            retriever = BM25Retriever.from_documents(documents, k=self.topk+1)
+            retriever = BM25Retriever.from_documents(documents, k=self.top_k+1)
             with open(save_pickle_path, "wb") as f:
                 pickle.dump(retriever, f)
             print(f"BM25 Vector store saved to {save_pickle_path}")
@@ -181,7 +181,7 @@ class DatasetRetriever:
         self.db_type = args.db_type
         self.langchain_db_path = Path("../rag_db") / f"{self.db_name}"
         self.bm25_file = "bm25_index.pkl"
-        self.topk = args.topk
+        self.top_k = args.top_k
         # 初始化向量数据库
         self.retriever_init()        
     
@@ -190,18 +190,20 @@ class DatasetRetriever:
         if self.db_type == "embedding":
             # 载入本地faiss向量数据库
             self.embedding = HuggingFaceEmbeddings(model_name = self.embedding_path)
+            print('this is the faiss retriever')
             self.vector_store = faiss.FAISS.load_local(self.langchain_db_path, self.embedding, allow_dangerous_deserialization=True)
         elif self.db_type == "bm25":
             # 载入本地bm25 pickle数据库
+            print('this is the bm25 retriever')
             pickle_file = Path(self.langchain_db_path) / self.bm25_file
             with open(pickle_file, "rb") as f:
                 self.retriever = pickle.load(f)
         else:
             raise ValueError(f"not a valid db_type: {self.db_type}! must be embedding or bm25")
 
-    def retrieve(self, query):
+    def retrieve(self, query, top_k=10):
         if self.db_type == "embedding":
-            results = self.vector_store.similarity_search(query, k=self.topk)
+            results = self.vector_store.similarity_search(query, k=top_k)
         elif self.db_type == "bm25":
             results = self.retriever.invoke(query)
         retrieve_list = []
@@ -248,7 +250,7 @@ def parse_args():
     parser.add_argument("--dataset_name", type=str, help="构建langchain db的数据集名字", default="gsm8k")
     parser.add_argument("--ds_cot", help="是否使用ds接口生成的cot，还是用默认的数据,gsm8k和prontoQA有两种数据形式",default=False, action="store_true")
     parser.add_argument("--db_split", type=str, help="所使用的数据集split", default="train")
-    parser.add_argument("--topk",type=int, help="检索时返回的topk样例个数", default=3)
+    parser.add_argument("--top_k",type=int, help="检索时返回的topk样例个数", default=3)
     parser.add_argument("--db_name", type=str, help="langchain数据库的名字，主要是检索时用，区分源、目标域")
     args = parser.parse_args()
     return args

@@ -1,0 +1,225 @@
+================ RUN START ================
+[SRC=gsm8k] [TGT=ProntoQA] [SHOT=2]
+[CMD] python llms_baseline.py         --model_name qwen7         --dataset_name ProntoQA         --split dev         --mode RAG         --max_new_tokens 8192         --db_name gsm8k         --icl_num 2         --top_k 10         --batch_test         --batch_size 8         --use_vllm         --dtype float16         --db_type embedding         --all_data_switch
+-------------------------------------------
+INFO 11-30 22:56:10 [__init__.py:244] Automatically detected platform cuda.
+No sentence-transformers model found with name ../llms/text2vec-large-chinese. Creating a new one with mean pooling.
+this is the faiss retriever
+system prompt file path: ./system_prompt/LogicalReasoning_RAG.txt
+user prompt file path: ./user_template/LogicalReasoning_RAG.txt
+================parameteres================
+args:Namespace(data_path='../data', dataset_name='ProntoQA', split='dev', save_path='./results', demonstration_path='./icl_examples', model_name='qwen7', stop_words='------', mode='RAG', max_new_tokens=8192, zero_shot=False, batch_test=True, batch_size=8, use_vllm=True, all_data_switch=True, system_prompt_dir='./system_prompt', db_name='gsm8k', index_path='../rag_db', icl_num=2, top_k=10, rag_result_path='./rag_results', db_type='embedding', user_template_dir='./user_template', dtype='float16')
+data_path:../data
+dataset_name:ProntoQA
+split:dev
+model_name:qwen7
+save_path:./results
+demonstration_path:./icl_examples
+mode:RAG
+all_data_switch:True
+batch_test:True
+batch_size:8
+vllm_switch:True
+max_new_tokens:8192
+zero_shot:False
+rag_result_path:./rag_results
+system_prompt_dir:./system_prompt
+user_template_dir:./user_template
+dtype:float16
+model_path:../llms/Qwen2.5-7B-Instruct
+rag_topk:10
+rag_icl_num:2
+db_name:gsm8k
+index_path:../rag_db
+dataset_retriever:<dataset_cons.DatasetRetriever object at 0x7f39bc822b90>
+db_type:embedding
+icl_template_file:gsm8k_ICL_template.txt
+icl_template_path:./user_template/gsm8k_ICL_template.txt
+prompt_file:LogicalReasoning_RAG.txt
+system_prompt_path:./system_prompt/LogicalReasoning_RAG.txt
+user_prompt_path:./user_template/LogicalReasoning_RAG.txt
+prompt_creator:<bound method LLM_Reasoning_Graph_Baseline.prompt_LSAT of <__main__.LLM_Reasoning_Graph_Baseline object at 0x7f3b68b11290>>
+save_file:./results/RAG2_gsm8k_embedding_ProntoQA_dev_qwen7.json
+retrieval_save_file:./rag_results/retrieval_gsm8k_ProntoQA_dev.json
+retrieval_writer:<_io.TextIOWrapper name='./rag_results/retrieval_gsm8k_ProntoQA_dev.json' mode='w' encoding='UTF-8'>
+================parameteres================
+使用vllm进行模型加载和推理
+loading model from: ../llms/Qwen2.5-7B-Instruct
+INFO 11-30 22:56:30 [config.py:823] This model supports multiple tasks: {'generate', 'reward', 'classify', 'embed', 'score'}. Defaulting to 'generate'.
+WARNING 11-30 22:56:30 [config.py:3271] Casting torch.bfloat16 to torch.float16.
+WARNING 11-30 22:56:30 [arg_utils.py:1642] Compute Capability < 8.0 is not supported by the V1 Engine. Falling back to V0. 
+INFO 11-30 22:56:30 [config.py:1946] Defaulting to use mp for distributed inference
+INFO 11-30 22:56:30 [llm_engine.py:230] Initializing a V0 LLM engine (v0.9.1) with config: model='../llms/Qwen2.5-7B-Instruct', speculative_config=None, tokenizer='../llms/Qwen2.5-7B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=True, dtype=torch.float16, max_seq_len=32768, download_dir=None, load_format=LoadFormat.AUTO, tensor_parallel_size=4, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto,  device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=../llms/Qwen2.5-7B-Instruct, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=None, chunked_prefill_enabled=False, use_async_output_proc=True, pooler_config=None, compilation_config={"level":0,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":[],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":0,"cudagraph_capture_sizes":[256,248,240,232,224,216,208,200,192,184,176,168,160,152,144,136,128,120,112,104,96,88,80,72,64,56,48,40,32,24,16,8,4,2,1],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"max_capture_size":256,"local_cache_dir":null}, use_cached_outputs=False, 
+WARNING 11-30 22:56:30 [utils.py:2597] We must use the `spawn` multiprocessing start method. Overriding VLLM_WORKER_MULTIPROC_METHOD to 'spawn'. See https://docs.vllm.ai/en/latest/usage/troubleshooting.html#python-multiprocessing for more information. Reason: CUDA is initialized
+WARNING 11-30 22:56:30 [multiproc_worker_utils.py:307] Reducing Torch parallelism from 48 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+INFO 11-30 22:56:31 [cuda.py:275] Cannot use FlashAttention-2 backend for Volta and Turing GPUs.
+INFO 11-30 22:56:31 [cuda.py:324] Using XFormers backend.
+WARNING 11-30 22:56:33 [env_override.py:17] NCCL_CUMEM_ENABLE is set to 0, skipping override. This may increase memory overhead with cudagraph+allreduce: https://github.com/NVIDIA/nccl/issues/1234
+WARNING 11-30 22:56:33 [env_override.py:17] NCCL_CUMEM_ENABLE is set to 0, skipping override. This may increase memory overhead with cudagraph+allreduce: https://github.com/NVIDIA/nccl/issues/1234
+WARNING 11-30 22:56:33 [env_override.py:17] NCCL_CUMEM_ENABLE is set to 0, skipping override. This may increase memory overhead with cudagraph+allreduce: https://github.com/NVIDIA/nccl/issues/1234
+INFO 11-30 22:56:34 [__init__.py:244] Automatically detected platform cuda.
+INFO 11-30 22:56:34 [__init__.py:244] Automatically detected platform cuda.
+INFO 11-30 22:56:34 [__init__.py:244] Automatically detected platform cuda.
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:37 [multiproc_worker_utils.py:226] Worker ready; awaiting tasks
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:38 [multiproc_worker_utils.py:226] Worker ready; awaiting tasks
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:38 [multiproc_worker_utils.py:226] Worker ready; awaiting tasks
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:39 [cuda.py:275] Cannot use FlashAttention-2 backend for Volta and Turing GPUs.
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:39 [cuda.py:324] Using XFormers backend.
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:39 [cuda.py:275] Cannot use FlashAttention-2 backend for Volta and Turing GPUs.
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:39 [cuda.py:324] Using XFormers backend.
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:39 [cuda.py:275] Cannot use FlashAttention-2 backend for Volta and Turing GPUs.
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:39 [cuda.py:324] Using XFormers backend.
+INFO 11-30 22:56:41 [utils.py:1126] Found nccl from library libnccl.so.2
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:41 [utils.py:1126] Found nccl from library libnccl.so.2
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:41 [utils.py:1126] Found nccl from library libnccl.so.2
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:41 [utils.py:1126] Found nccl from library libnccl.so.2
+INFO 11-30 22:56:41 [pynccl.py:70] vLLM is using nccl==2.26.2
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:41 [pynccl.py:70] vLLM is using nccl==2.26.2
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:41 [pynccl.py:70] vLLM is using nccl==2.26.2
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:41 [pynccl.py:70] vLLM is using nccl==2.26.2
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:42 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3.json
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:42 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3.json
+INFO 11-30 22:56:42 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3.json
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:42 [custom_all_reduce_utils.py:246] reading GPU P2P access cache from /root/.cache/vllm/gpu_p2p_access_cache_for_0,1,2,3.json
+INFO 11-30 22:56:42 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[1, 2, 3], buffer_handle=(3, 4194304, 6, 'psm_318f5ad1'), local_subscribe_addr='ipc:///tmp/4f8e33cf-72d6-42a5-88ff-3741f00cb145', remote_subscribe_addr=None, remote_addr_ipv6=False)
+INFO 11-30 22:56:42 [parallel_state.py:1065] rank 0 in world size 4 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:42 [parallel_state.py:1065] rank 1 in world size 4 is assigned as DP rank 0, PP rank 0, TP rank 1, EP rank 1
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:42 [parallel_state.py:1065] rank 3 in world size 4 is assigned as DP rank 0, PP rank 0, TP rank 3, EP rank 3
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:42 [parallel_state.py:1065] rank 2 in world size 4 is assigned as DP rank 0, PP rank 0, TP rank 2, EP rank 2
+INFO 11-30 22:56:42 [model_runner.py:1171] Starting to load model ../llms/Qwen2.5-7B-Instruct...
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:42 [model_runner.py:1171] Starting to load model ../llms/Qwen2.5-7B-Instruct...
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:42 [model_runner.py:1171] Starting to load model ../llms/Qwen2.5-7B-Instruct...
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:42 [model_runner.py:1171] Starting to load model ../llms/Qwen2.5-7B-Instruct...
+Loading safetensors checkpoint shards:   0% Completed | 0/4 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards:  25% Completed | 1/4 [00:01<00:03,  1.22s/it]
+Loading safetensors checkpoint shards:  50% Completed | 2/4 [00:02<00:02,  1.16s/it]
+Loading safetensors checkpoint shards:  75% Completed | 3/4 [00:03<00:01,  1.14s/it]
+Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:04<00:00,  1.17s/it]
+Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:04<00:00,  1.17s/it]
+
+INFO 11-30 22:56:48 [default_loader.py:272] Loading weights took 4.72 seconds
+INFO 11-30 22:56:49 [model_runner.py:1203] Model loading took 3.5547 GiB and 5.230729 seconds
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:49 [default_loader.py:272] Loading weights took 5.89 seconds
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:49 [default_loader.py:272] Loading weights took 6.25 seconds
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:49 [model_runner.py:1203] Model loading took 3.5547 GiB and 6.454183 seconds
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:50 [model_runner.py:1203] Model loading took 3.5547 GiB and 6.847997 seconds
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:50 [default_loader.py:272] Loading weights took 7.19 seconds
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:51 [model_runner.py:1203] Model loading took 3.5547 GiB and 7.632279 seconds
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:56 [worker.py:294] Memory profiling takes 5.16 seconds
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:56 [worker.py:294] the current vLLM instance can use total_gpu_memory (31.75GiB) x gpu_memory_utilization (0.90) = 28.57GiB
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:56:56 [worker.py:294] model weights take 3.55GiB; non_torch_memory takes 0.78GiB; PyTorch activation peak memory takes 1.97GiB; the rest of the memory reserved for KV Cache is 22.27GiB.
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:56 [worker.py:294] Memory profiling takes 5.20 seconds
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:56 [worker.py:294] the current vLLM instance can use total_gpu_memory (31.75GiB) x gpu_memory_utilization (0.90) = 28.57GiB
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:56:56 [worker.py:294] model weights take 3.55GiB; non_torch_memory takes 1.02GiB; PyTorch activation peak memory takes 1.97GiB; the rest of the memory reserved for KV Cache is 22.03GiB.
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:57 [worker.py:294] Memory profiling takes 5.11 seconds
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:57 [worker.py:294] the current vLLM instance can use total_gpu_memory (31.75GiB) x gpu_memory_utilization (0.90) = 28.57GiB
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:56:57 [worker.py:294] model weights take 3.55GiB; non_torch_memory takes 1.02GiB; PyTorch activation peak memory takes 1.97GiB; the rest of the memory reserved for KV Cache is 22.03GiB.
+INFO 11-30 22:56:57 [worker.py:294] Memory profiling takes 5.28 seconds
+INFO 11-30 22:56:57 [worker.py:294] the current vLLM instance can use total_gpu_memory (31.75GiB) x gpu_memory_utilization (0.90) = 28.57GiB
+INFO 11-30 22:56:57 [worker.py:294] model weights take 3.55GiB; non_torch_memory takes 1.41GiB; PyTorch activation peak memory takes 1.97GiB; the rest of the memory reserved for KV Cache is 21.64GiB.
+INFO 11-30 22:56:57 [executor_base.py:113] # cuda blocks: 101305, # CPU blocks: 18724
+INFO 11-30 22:56:57 [executor_base.py:118] Maximum concurrency for 32768 tokens per request: 49.47x
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:57:02 [model_runner.py:1513] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:57:02 [model_runner.py:1513] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+INFO 11-30 22:57:02 [model_runner.py:1513] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:57:02 [model_runner.py:1513] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+Capturing CUDA graph shapes:   0%|                                             | 0/35 [00:00<?, ?it/s]Capturing CUDA graph shapes:   3%|█                                    | 1/35 [00:01<00:34,  1.01s/it]Capturing CUDA graph shapes:   6%|██                                   | 2/35 [00:01<00:32,  1.03it/s]Capturing CUDA graph shapes:   9%|███▏                                 | 3/35 [00:02<00:30,  1.04it/s]Capturing CUDA graph shapes:  11%|████▏                                | 4/35 [00:03<00:27,  1.12it/s]Capturing CUDA graph shapes:  14%|█████▎                               | 5/35 [00:04<00:25,  1.17it/s]Capturing CUDA graph shapes:  17%|██████▎                              | 6/35 [00:05<00:24,  1.20it/s]Capturing CUDA graph shapes:  20%|███████▍                             | 7/35 [00:06<00:23,  1.20it/s]Capturing CUDA graph shapes:  23%|████████▍                            | 8/35 [00:06<00:21,  1.23it/s]Capturing CUDA graph shapes:  26%|█████████▌                           | 9/35 [00:07<00:20,  1.26it/s]Capturing CUDA graph shapes:  29%|██████████▎                         | 10/35 [00:08<00:19,  1.27it/s]Capturing CUDA graph shapes:  31%|███████████▎                        | 11/35 [00:09<00:19,  1.23it/s]Capturing CUDA graph shapes:  34%|████████████▎                       | 12/35 [00:10<00:18,  1.22it/s]Capturing CUDA graph shapes:  37%|█████████████▎                      | 13/35 [00:10<00:17,  1.24it/s]Capturing CUDA graph shapes:  40%|██████████████▍                     | 14/35 [00:11<00:16,  1.27it/s]Capturing CUDA graph shapes:  43%|███████████████▍                    | 15/35 [00:12<00:15,  1.28it/s]Capturing CUDA graph shapes:  46%|████████████████▍                   | 16/35 [00:13<00:14,  1.29it/s]Capturing CUDA graph shapes:  49%|█████████████████▍                  | 17/35 [00:13<00:13,  1.30it/s]Capturing CUDA graph shapes:  51%|██████████████████▌                 | 18/35 [00:14<00:13,  1.29it/s]Capturing CUDA graph shapes:  54%|███████████████████▌                | 19/35 [00:15<00:12,  1.26it/s]Capturing CUDA graph shapes:  57%|████████████████████▌               | 20/35 [00:16<00:11,  1.26it/s]Capturing CUDA graph shapes:  60%|█████████████████████▌              | 21/35 [00:17<00:10,  1.28it/s]Capturing CUDA graph shapes:  63%|██████████████████████▋             | 22/35 [00:17<00:10,  1.29it/s]Capturing CUDA graph shapes:  66%|███████████████████████▋            | 23/35 [00:18<00:09,  1.31it/s]Capturing CUDA graph shapes:  69%|████████████████████████▋           | 24/35 [00:19<00:08,  1.29it/s]Capturing CUDA graph shapes:  71%|█████████████████████████▋          | 25/35 [00:20<00:07,  1.28it/s]Capturing CUDA graph shapes:  74%|██████████████████████████▋         | 26/35 [00:21<00:07,  1.20it/s]Capturing CUDA graph shapes:  77%|███████████████████████████▊        | 27/35 [00:21<00:06,  1.24it/s]Capturing CUDA graph shapes:  80%|████████████████████████████▊       | 28/35 [00:22<00:05,  1.25it/s]Capturing CUDA graph shapes:  83%|█████████████████████████████▊      | 29/35 [00:23<00:04,  1.24it/s][1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:57:26 [custom_all_reduce.py:196] Registering 1995 cuda graph addresses
+Capturing CUDA graph shapes:  86%|██████████████████████████████▊     | 30/35 [00:24<00:03,  1.27it/s][1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:57:27 [custom_all_reduce.py:196] Registering 1995 cuda graph addresses
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:57:27 [custom_all_reduce.py:196] Registering 1995 cuda graph addresses
+Capturing CUDA graph shapes:  89%|███████████████████████████████▉    | 31/35 [00:24<00:03,  1.29it/s]Capturing CUDA graph shapes:  91%|████████████████████████████████▉   | 32/35 [00:25<00:02,  1.32it/s]Capturing CUDA graph shapes:  94%|█████████████████████████████████▉  | 33/35 [00:26<00:01,  1.35it/s]Capturing CUDA graph shapes:  97%|██████████████████████████████████▉ | 34/35 [00:27<00:00,  1.38it/s]Capturing CUDA graph shapes: 100%|████████████████████████████████████| 35/35 [00:27<00:00,  1.32it/s]Capturing CUDA graph shapes: 100%|████████████████████████████████████| 35/35 [00:27<00:00,  1.25it/s]
+INFO 11-30 22:57:30 [custom_all_reduce.py:196] Registering 1995 cuda graph addresses
+[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:57:30 [model_runner.py:1671] Graph capturing finished in 28 secs, took 0.93 GiB
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:57:30 [model_runner.py:1671] Graph capturing finished in 28 secs, took 0.93 GiB
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:57:30 [model_runner.py:1671] Graph capturing finished in 28 secs, took 0.93 GiB
+INFO 11-30 22:57:30 [model_runner.py:1671] Graph capturing finished in 28 secs, took 0.93 GiB
+INFO 11-30 22:57:30 [llm_engine.py:428] init engine (profile, create kv cache, warmup model) took 39.23 seconds
+进行batch测试
+Loaded 500 examples from dev split.
+  0%|                                                                          | 0/63 [00:00<?, ?it/s]
+Adding requests:   0%|                                                          | 0/8 [00:00<?, ?it/s][AAdding requests: 100%|█████████████████████████████████████████████████| 8/8 [00:00<00:00, 473.33it/s]
+
+Processed prompts:   0%|    | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][A
+Processed prompts:  12%|▏| 1/8 [00:01<00:09,  1.34s/it, est. speed input: 464.56 toks/s, output: 75.31[A[1;36m(VllmWorkerProcess pid=978049)[0;0m INFO 11-30 22:57:34 [multiproc_worker_utils.py:260] Worker exiting
+[1;36m(VllmWorkerProcess pid=978047)[0;0m INFO 11-30 22:57:34 [multiproc_worker_utils.py:260] Worker exiting
+[1;36m(VllmWorkerProcess pid=978048)[0;0m INFO 11-30 22:57:34 [multiproc_worker_utils.py:260] Worker exiting
+  0%|                                                                          | 0/63 [00:01<?, ?it/s]
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/code/Logic-LLM-main/baselines/llms_baseline.py", line 523, in <module>
+[rank0]:     llm_problem_reduction.generation_entrance()
+[rank0]:   File "/code/Logic-LLM-main/baselines/llms_baseline.py", line 370, in generation_entrance
+[rank0]:     self.batch_reasoning_graph_generation(batch_size=self.batch_size)
+[rank0]:   File "/code/Logic-LLM-main/baselines/llms_baseline.py", line 438, in batch_reasoning_graph_generation
+[rank0]:     batch_output = self.model_generate_batch(full_prompts)
+[rank0]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/code/Logic-LLM-main/baselines/llms_baseline.py", line 350, in model_generate_batch
+[rank0]:     outputs = self.model.generate(texts, sampling_params=self.sampling_params)
+[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/utils.py", line 1267, in inner
+[rank0]:     return fn(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/entrypoints/llm.py", line 474, in generate
+[rank0]:     outputs = self._run_engine(use_tqdm=use_tqdm)
+[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/entrypoints/llm.py", line 1517, in _run_engine
+[rank0]:     step_outputs = self.llm_engine.step()
+[rank0]:                    ^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/engine/llm_engine.py", line 1352, in step
+[rank0]:     outputs = self.model_executor.execute_model(
+[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/executor/executor_base.py", line 300, in execute_model
+[rank0]:     driver_outputs = self._driver_execute_model(execute_model_req)
+[rank0]:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/executor/mp_distributed_executor.py", line 145, in _driver_execute_model
+[rank0]:     return self.driver_worker.execute_model(execute_model_req)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/worker/worker_base.py", line 421, in execute_model
+[rank0]:     output = self.model_runner.execute_model(
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 116, in decorate_context
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/worker/model_runner.py", line 1906, in execute_model
+[rank0]:     output: SamplerOutput = self.sampler(
+[rank0]:                             ^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/model_executor/layers/sampler.py", line 298, in forward
+[rank0]:     maybe_deferred_sample_results, maybe_sampled_tokens_tensor = _sample(
+[rank0]:                                                                  ^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/model_executor/layers/sampler.py", line 758, in _sample
+[rank0]:     return _sample_with_torch(
+[rank0]:            ^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/model_executor/layers/sampler.py", line 727, in _sample_with_torch
+[rank0]:     return get_pythonized_sample_results(
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/model_executor/layers/sampler.py", line 602, in get_pythonized_sample_results
+[rank0]:     sample_results = _greedy_sample(seq_groups, greedy_samples)
+[rank0]:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/root/anaconda3/lib/python3.11/site-packages/vllm/model_executor/layers/sampler.py", line 460, in _greedy_sample
+[rank0]:     samples_lst = samples.tolist()
+[rank0]:                   ^^^^^^^^^^^^^^^^
+[rank0]: KeyboardInterrupt
+Exception ignored in atexit callback: <function _exit_function at 0x7f39f8684a40>
+Traceback (most recent call last):
+  File "/root/anaconda3/lib/python3.11/multiprocessing/util.py", line 357, in _exit_function
+    p.join()
+  File "/root/anaconda3/lib/python3.11/multiprocessing/process.py", line 149, in join
+    res = self._popen.wait(timeout)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/anaconda3/lib/python3.11/multiprocessing/popen_fork.py", line 43, in wait
+    return self.poll(os.WNOHANG if timeout == 0.0 else 0)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/anaconda3/lib/python3.11/multiprocessing/popen_fork.py", line 27, in poll
+    pid, sts = os.waitpid(self.pid, flag)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt: 
+/root/anaconda3/lib/python3.11/multiprocessing/resource_tracker.py:224: UserWarning: resource_tracker: There appear to be 3 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+/root/anaconda3/lib/python3.11/multiprocessing/resource_tracker.py:237: UserWarning: resource_tracker: '/loky-978047-657bcki3': [Errno 2] No such file or directory
+  warnings.warn('resource_tracker: %r: %s' % (name, e))
+/root/anaconda3/lib/python3.11/multiprocessing/resource_tracker.py:224: UserWarning: resource_tracker: There appear to be 1 leaked shared_memory objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

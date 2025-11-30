@@ -5,13 +5,14 @@ SPLIT="dev"
 LANGCHAIN_DB="ProofWriter"    # gsm8k//ProntoQA/FOLIO/ProofWriter/LogicalDeduction
 DB_TYPE="bm25"   # bm25/embedding
 RAG_TOPK=10
-DEMONSTRATION_NUM=4
+DEMONSTRATION_NUM=1
 ZERO_SHOT=false
+DTYPE="float16"
 
 
-LANGCHAIN_CMD="python dataset_cons.py --dataset_name $LANGCHAIN_DB --db_type $DB_TYPE --ds_cot true --topk $RAG_TOPK"
+LANGCHAIN_CMD="python dataset_cons.py --dataset_name $LANGCHAIN_DB --db_name $LANGCHAIN_DB --db_type $DB_TYPE --top_k $RAG_TOPK  --ds_cot"
 
-RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --db_type $DB_TYPE --batch_test --batch_size 8 --use_vllm --all_data_switch"
+RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --db_type $DB_TYPE --dtype $DTYPE --batch_test --batch_size 8 --use_vllm --all_data_switch"
 
 EVA_CMD="python evaluation.py --dataset_name $DATASET_NAME --model_name $MODEL_NAME --split $SPLIT --mode $MODE  --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM"
 

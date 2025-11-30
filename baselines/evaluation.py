@@ -201,6 +201,7 @@ def parse_args():
     parser.add_argument('--zero_shot', default=False, action='store_true')
     parser.add_argument('--db_name', type=str, default='gsm8k', help="所使用的RAG db的名字")  # 用于检索的数据库名称
     parser.add_argument('--icl_num', type=int, default=2, help="RAG检索后使用的示例个数")  # RAG检索后使用的示例个数
+    parser.add_argument("--db_type", type=str, help="可选的langchain db类型，embedding或者bm25", default="embedding")
     args = parser.parse_args()
     return args
 
@@ -213,7 +214,7 @@ if __name__ == "__main__":
     if args.mode in ["Direct", "CoT", "Logical"]:
         result_file = os.path.join(args.result_path, f'{args.mode}_{testing_type}_{args.dataset_name}_{args.split}_{args.model_name}.json')
     elif args.mode == "RAG":
-        result_file = os.path.join(args.result_path, f'{args.mode}{args.icl_num}_{args.db_name}_{args.dataset_name}_{args.split}_{args.model_name}.json')
+        result_file = os.path.join(args.result_path, f'{args.mode}{args.icl_num}_{args.db_name}_{args.db_type}_{args.dataset_name}_{args.split}_{args.model_name}.json')
     if args.dataset_name == "gsm8k":
         eval_result = evaluate_gsm8k_exact(result_file)
         print("当前验证的文件为：", result_file)

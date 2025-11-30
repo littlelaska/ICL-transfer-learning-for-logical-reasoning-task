@@ -30,6 +30,7 @@ class LLM_Reasoning_Graph_Baseline:
         self.system_prompt_dir = args.system_prompt_dir
         self.user_template_dir = args.user_template_dir
         
+        self.dtype = args.dtype
         # 对需要的部分数据进行初始化
         self.para_init()
 
@@ -64,7 +65,8 @@ class LLM_Reasoning_Graph_Baseline:
             self.rag_icl_num = args.icl_num   # 用于上下文学习的展示样例个数  
             self.db_name = args.db_name 
             self.index_path = args.index_path
-            self.dataset_retriever = DatasetRetriever(index_path=self.index_path, db_name=self.db_name)
+            self.dataset_retriever = DatasetRetriever(self.args)
+            self.db_type = args.db_type
             # rag所用的icl template文件路径，用于包装检索到的document
             self.icl_template_file =  f"{'gsm8k' if self.db_name == 'gsm8k' else 'LogicalReasoning'}_ICL_template.txt"
             self.icl_template_path = os.path.join(self.user_template_dir, self.icl_template_file)
@@ -99,7 +101,7 @@ class LLM_Reasoning_Graph_Baseline:
         # 结果存储路径初始化
         # 统一定义存储路径
         if self.mode == "RAG":
-            self.save_file = os.path.join(self.save_path, f'{self.mode}{self.rag_icl_num}_{self.db_name}_{self.dataset_name}_{self.split}_{self.model_name}.json')
+            self.save_file = os.path.join(self.save_path, f'{self.mode}{self.rag_icl_num}_{self.db_name}_{self.db_type}_{self.dataset_name}_{self.split}_{self.model_name}.json')
             # laska定义一个保存检索中间结果的文件
             if not os.path.exists(self.rag_result_path):
                 os.makedirs(self.rag_result_path)
@@ -142,7 +144,7 @@ class LLM_Reasoning_Graph_Baseline:
         if self.vllm_switch:
             print("使用vllm进行模型加载和推理")
             print("loading model from:", self.model_path)
-            model = LLM(model=self.model_path, tokenizer=self.model_path,tensor_parallel_size=torch.cuda.device_count(), max_model_len=32768,dtype="float32", trust_remote_code=True, gpu_memory_utilization=0.9)
+            model = LLM(model=self.model_path, tokenizer=self.model_path,tensor_parallel_size=torch.cuda.device_count(), max_model_len=32768,dtype=self.dtype, trust_remote_code=True, gpu_memory_utilization=0.9)
             tokenizer = AutoTokenizer.from_pretrained(self.model_path, padding_side='left')
             self.sampling_params = SamplingParams(temperature=0, max_tokens=self.max_new_tokens, top_p=0.95, top_k=40, n=1)
             return tokenizer, model
@@ -493,7 +495,7 @@ def parse_args():
     parser.add_argument('--zero_shot', default=False, action='store_true')
     # laska 定义一个batch测试的开关
     parser.add_argument('--batch_test', default=False, action='store_true')
-    parser.add_argument('--batch_size', type=int, default='8')
+    parser.add_argument('--batch_size', type=int, default=8)
     # 定义一个vllm的开关
     parser.add_argument('--use_vllm', default=False, action='store_true')
     # laska 定义一个针对是否对完整数据集进行测试的开关
@@ -507,8 +509,10 @@ def parse_args():
     parser.add_argument('--icl_num', type=int, default=0, help="RAG检索后使用的示例个数")  # RAG检索后使用的示例个数
     parser.add_argument('--top_k', type=int, default=3, help="RAG检索的top k个数")  # RAG检索的top k个数
     parser.add_argument('--rag_result_path', type=str, default='./rag_results', help="RAG检索中间结果的保存路径")  # RAG检索中间结果的保存路径
+    parser.add_argument("--db_type", type=str, help="可选的langchain db类型，embedding或者bm25", default="embedding")
     # 2025.11.11 user_template_dir
     parser.add_argument("--user_template_dir", type=str, default="./user_template", help="用于存放user template文件的dir路径")
+    parser.add_argument("--dtype", type=str, default="float16")
     args = parser.parse_args()
     return args
 

@@ -1,0 +1,6 @@
+================ RUN START ================
+[SRC=gsm8k] [TGT=ProntoQA] [SHOT=1]
+[CMD] python llms_baseline.py         --model_name qwen7         --dataset_name ProntoQA         --split dev         --mode RAG         --max_new_tokens 8192         --db_name gsm8k         --icl_num 1         --top_k 10         --batch_test         --batch_size 8         --use_vllm         --dtype float16         --db_type embedding         --all_data_switch
+-------------------------------------------
+INFO 11-30 22:50:34 [__init__.py:244] Automatically detected platform cuda.
+No sentence-transformers model found with name ../llms/text2vec-large-chinese. Creating a new one with mean pooling.

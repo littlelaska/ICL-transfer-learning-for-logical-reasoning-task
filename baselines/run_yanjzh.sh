@@ -9,6 +9,8 @@ RAG_TOPK=10
 BATCH_SIZE=8
 MAX_NEW_TOKENS=8192
 ZERO_SHOT=false                # 这里只跑 1–4 shot，所以不启用 zero-shot
+DTYPE="float16"
+DB_TYPE="embedding"              # bm25  / embedding
 
 # 源域（demo 来源）
 SOURCE_DOMAINS=("gsm8k" "ProntoQA" "LogicalDeduction" "FOLIO" "ProofWriter")
@@ -58,6 +60,9 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
 
       # 建立日志目录
       LOG_DIR="logs/${MODEL_NAME}/${MODE}/${SRC}__${TGT}"
+      if [ "${MODE}" = "RAG" ]; then
+        LOG_DIR="logs/${MODEL_NAME}/${MODE}_${DB_TYPE}/${SRC}__${TGT}"
+      fi
       mkdir -p "${LOG_DIR}"
       LOG_FILE="${LOG_DIR}/shot${SHOT}.log"
 
@@ -82,7 +87,8 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         --batch_test \
         --batch_size ${BATCH_SIZE} \
         --use_vllm \
-        --dtype float16 \
+        --dtype ${DTYPE} \
+        --db_type ${DB_TYPE} \
         --all_data_switch"
 
       EVA_CMD="python evaluation.py \
@@ -91,6 +97,7 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         --split ${SPLIT} \
         --mode ${MODE} \
         --db_name ${SRC} \
+        --db_type ${DB_TYPE} \
         --icl_num ${DEMONSTRATION_NUM}"
 
 
