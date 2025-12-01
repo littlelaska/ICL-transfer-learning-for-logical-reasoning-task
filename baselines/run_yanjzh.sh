@@ -4,7 +4,7 @@
 # 固定配置（按需改）
 # ==============================
 MODE="RAG"                     # CoT / Direct / RAG / Logical
-MODEL_NAME="qwen7"            # 给定模型
+MODEL_NAME="qwen14"            # 给定模型
 RAG_TOPK=10
 BATCH_SIZE=8
 MAX_NEW_TOKENS=8192
@@ -73,7 +73,16 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
       echo "SHOT            : ${SHOT}"
       echo "日志文件        : ${LOG_FILE}"
       echo "========================================"
-
+      
+      
+      # LANGCHAIN_CMD
+      LANGCHAIN_CMD="python dataset_cons.py \
+      --dataset_name ${SRC} \
+      --db_name ${SRC} \
+      --db_type ${DB_TYPE} \
+      --top_k ${RAG_TOPK}  \
+      --ds_cot"
+      
       # RUN_CMD & EVAL_CMD
       RUN_CMD="python llms_baseline.py \
         --model_name ${MODEL_NAME} \
@@ -105,6 +114,8 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         echo "================ RUN START ================"
         echo "[SRC=${SRC}] [TGT=${TGT}] [SHOT=${SHOT}]"
         echo "[CMD] ${RUN_CMD}"
+        echo "-------------------------------------------"
+        ${LANGCHAIN_CMD}
         echo "-------------------------------------------"
         CUDA_VISIBLE_DEVICES=0,1,2,3 ${RUN_CMD}
         
