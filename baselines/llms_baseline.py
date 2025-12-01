@@ -105,7 +105,7 @@ class LLM_Reasoning_Graph_Baseline:
             # laska定义一个保存检索中间结果的文件
             if not os.path.exists(self.rag_result_path):
                 os.makedirs(self.rag_result_path)
-            self.retrieval_save_file = os.path.join(self.rag_result_path, f'retrieval_{self.db_name}_{self.dataset_name}_{self.split}.json')   # 只与文件有关
+            self.retrieval_save_file = os.path.join(self.rag_result_path, f'retrieval_{self.db_name}_{self.db_type}_{self.dataset_name}_{self.split}.json')   # 只与文件有关
             self.retrieval_writer = open(self.retrieval_save_file, 'w') 
         else:
             self.save_file = os.path.join(self.save_path, f'{self.mode}_{self.testing_type}_{self.dataset_name}_{self.split}_{self.model_name}.json')
@@ -146,7 +146,8 @@ class LLM_Reasoning_Graph_Baseline:
             print("loading model from:", self.model_path)
             model = LLM(model=self.model_path, tokenizer=self.model_path,tensor_parallel_size=torch.cuda.device_count(), max_model_len=32768,dtype=self.dtype, trust_remote_code=True, gpu_memory_utilization=0.9)
             tokenizer = AutoTokenizer.from_pretrained(self.model_path, padding_side='left')
-            self.sampling_params = SamplingParams(temperature=0, max_tokens=self.max_new_tokens, top_p=0.95, top_k=40, n=1)
+#             self.sampling_params = SamplingParams(temperature=0, max_tokens=self.max_new_tokens, top_p=0.95, top_k=40, n=1)
+            self.sampling_params = SamplingParams(temperature=0, max_tokens=self.max_new_tokens, top_p=1, top_k=1, n=1)
             return tokenizer, model
         else:
             print("直接加载模型进行推理")

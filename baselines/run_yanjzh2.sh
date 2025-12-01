@@ -33,7 +33,7 @@ get_split_by_target() {
     "AR-LSAT")          echo "test" ;;
     "ProofWriter")      echo "test" ;;
     "FOLIO")            echo "dev" ;;
-    "logicaldeduction") echo "dev" ;;  # 你没说明，这里默认 test
+    "LogicalDeduction") echo "dev" ;;  # 你没说明，这里默认 test
     *)                  echo "test" ;;  # 默认值
   esac
 }
