@@ -9,6 +9,17 @@ from vllm import LLM, SamplingParams
 import torch
 from dataset_cons import DatasetRetriever
 
+import random
+import numpy as np
+import torch
+
+seed = 42
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+
+
 class LLM_Reasoning_Graph_Baseline:
     def __init__(self, args):
         self.args = args

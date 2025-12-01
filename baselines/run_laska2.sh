@@ -5,7 +5,7 @@ SPLIT="test"
 LANGCHAIN_DB="FOLIO"    # gsm8k//ProntoQA/FOLIO/ProofWriter/LogicalDeduction
 DB_TYPE="embedding"   # bm25/embedding
 RAG_TOPK=10
-DEMONSTRATION_NUM=0
+DEMONSTRATION_NUM=1
 ZERO_SHOT=true
 DTYPE="float16"
 
