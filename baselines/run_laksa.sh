@@ -1,11 +1,11 @@
-MODE="CoT"    # CoT/Direct/RAG/Logical
+MODE="RAG"    # CoT/Direct/RAG/Logical
 DATASET_NAME="AR-LSAT"    # gsm8k/ProntoQA/AR-LSAT/FOLIO/ProofWriter/LogicalDeduction
 MODEL_NAME="qwen7"   # qwen14/qwen7/qwen3-8
 SPLIT="test"
 LANGCHAIN_DB="FOLIO"    # gsm8k//ProntoQA/FOLIO/ProofWriter/LogicalDeduction
 DB_TYPE="embedding"   # bm25/embedding
 RAG_TOPK=10
-DEMONSTRATION_NUM=0
+DEMONSTRATION_NUM=4
 ZERO_SHOT=true
 DTYPE="float16"
 

@@ -1,10 +1,5 @@
-Context:
-{context}
-Question:
-{question}
-Options:
-{options}
-Reasoning:
-{cot}
-Answer:
-{answer}
+Context:{context}
+Question:{question}
+Options:{options}
+Reasoning:{cot}
+Answer:{answer}

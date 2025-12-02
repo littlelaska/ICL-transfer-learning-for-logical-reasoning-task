@@ -1,7 +1,7 @@
 Given a problem statement as contexts, the task is to answer a logical reasoning question. 
 ------
 [[DEMONSTRATIONS]]
-
+------
 Context:
 [[CONTEXT]]
 Question:

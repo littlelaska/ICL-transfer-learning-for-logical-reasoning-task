@@ -10,10 +10,10 @@ BATCH_SIZE=8
 MAX_NEW_TOKENS=8192
 ZERO_SHOT=false                # 这里只跑 1–4 shot，所以不启用 zero-shot
 DTYPE="float16"
-DB_TYPE="bm25"              # bm25  / embedding
+DB_TYPE="embedding"              # bm25  / embedding
 
 # 源域（demo 来源）
-SOURCE_DOMAINS=("gsm8k" "ProntoQA" "LogicalDeduction" "FOLIO" "ProofWriter")
+SOURCE_DOMAINS=("ProntoQA" "LogicalDeduction" "FOLIO" "ProofWriter" "gsm8k")
 
 # 目标域（评测数据集）
 TARGET_DOMAINS=("gsm8k" "ProntoQA" "AR-LSAT" "ProofWriter" "FOLIO" "LogicalDeduction")
@@ -74,14 +74,16 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
       echo "日志文件        : ${LOG_FILE}"
       echo "========================================"
       
-      
       # LANGCHAIN_CMD
       LANGCHAIN_CMD="python dataset_cons.py \
       --dataset_name ${SRC} \
       --db_name ${SRC} \
       --db_type ${DB_TYPE} \
-      --top_k ${RAG_TOPK}  \
-      --ds_cot"
+      --top_k ${RAG_TOPK}"
+      
+      if [[ "${SRC}" != "ProntoQA" && "${SRC}" != "AR-LSAT" ]]; then 
+        LANGCHAIN_CMD="${LANGCHAIN_CMD} --ds_cot"
+      fi
       
       # RUN_CMD & EVAL_CMD
       RUN_CMD="python llms_baseline.py \
@@ -113,6 +115,7 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
       {
         echo "================ RUN START ================"
         echo "[SRC=${SRC}] [TGT=${TGT}] [SHOT=${SHOT}]"
+        echo "[CMD] ${LANGCHAIN_CMD}"
         echo "[CMD] ${RUN_CMD}"
         echo "-------------------------------------------"
         ${LANGCHAIN_CMD}

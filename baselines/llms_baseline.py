@@ -224,7 +224,7 @@ class LLM_Reasoning_Graph_Baseline:
     # 针对few-shot，生成prompt，该部分完成的是在单个样例之前添加few-shot的示例
     def prompt_LSAT(self, in_context_example, test_example):
         # 2025.11.11 add system prompt
-        role_content = self.load_system_prompt()   # 不论是rag还是cot的system prompt都是一样的
+        role_content = self.load_system_prompt()   # 不论是rag还是cot的system prompt都是一样的   
         user_prompt_template = self.load_user_prompt_template()  # 目前这一部分的选择是不一样的     
         # 这一部分分支逻辑待验证代码正确性
         if self.mode == "RAG":
@@ -233,6 +233,20 @@ class LLM_Reasoning_Graph_Baseline:
             full_prompt = user_prompt_template
         else:
             full_prompt = in_context_example
+        # 20251202 添加打印信息标记
+        if not hasattr(type(self).prompt_LSAT, "_has_run"):
+            print("👉 self.prompt_LAST 被首次调用，打印提示信息")
+            print("-"*36)
+            print("current role_content is :")
+            print(role_content)
+            print("-"*16)
+            print("current user template is:")
+            print(user_prompt_template)
+            print("-"*16)
+            print("full prompt is:")
+            print(full_prompt)            
+            print("-"*36)
+            type(self).prompt_LSAT._has_run = True
         
         # 2025.11.11 增加rag的prompt构造
         # 所有数据集都有question域
@@ -437,7 +451,7 @@ class LLM_Reasoning_Graph_Baseline:
         # load in-context examples,针对非0-shot的场景
         if self.mode in ["CoT", "Direct"] and not self.zero_shot:    # rag形式需要自行查找context
             in_context_examples = self.load_in_context_examples()
-        else:
+        else:   # rag/cot-0shot
             in_context_examples = ""
             
         outputs = []

@@ -1,4 +1,7 @@
-Context: [[CONTEXT]]
-Question: [[QUESTION]]
-Options:\n[[OPTIONS]]
+Context: 
+[[CONTEXT]]
+Question: 
+[[QUESTION]]
+Options:
+[[OPTIONS]]
 Let's think step by step. The correct option is:
