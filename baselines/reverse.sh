@@ -118,7 +118,8 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         --mode ${MODE} \
         --db_name ${SRC} \
         --db_type ${DB_TYPE} \
-        --icl_num ${DEMONSTRATION_NUM}"
+        --icl_num ${DEMONSTRATION_NUM} \
+        --reverse_rag_order"
 
 
       {

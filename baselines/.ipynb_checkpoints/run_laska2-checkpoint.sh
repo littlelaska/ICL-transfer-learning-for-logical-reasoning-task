@@ -3,7 +3,7 @@ DATASET_NAME="AR-LSAT"    # gsm8k/ProntoQA/AR-LSAT/FOLIO/ProofWriter/LogicalDedu
 MODEL_NAME="qwen7"   # qwen14/qwen7/qwen3-8
 SPLIT="test"
 LANGCHAIN_DB="FOLIO"    # gsm8k//ProntoQA/FOLIO/ProofWriter/LogicalDeduction
-DB_TYPE="embedding"   # bm25/embedding
+DB_TYPE="bm25"   # bm25/embedding
 RAG_TOPK=10
 DEMONSTRATION_NUM=3
 ZERO_SHOT=true
@@ -14,7 +14,7 @@ LANGCHAIN_CMD="python dataset_cons.py --dataset_name $LANGCHAIN_DB --db_name $LA
 
 RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --db_type $DB_TYPE --dtype $DTYPE --batch_test --batch_size 8 --use_vllm --all_data_switch"
 
-EVA_CMD="python evaluation.py --dataset_name $DATASET_NAME --model_name $MODEL_NAME --split $SPLIT --mode $MODE  --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM"
+EVA_CMD="python evaluation.py --dataset_name $DATASET_NAME --model_name $MODEL_NAME --split $SPLIT --mode $MODE  --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --db_type $DB_TYPE"
 
 if [ "$ZERO_SHOT" = true ] && [ "$MODE" != "RAG" ]; then
     RUN_CMD="$RUN_CMD --zero_shot"
@@ -24,6 +24,7 @@ fi
 
 if [ "$REVERSE_FLAG" = true ] && [ "$MODE" = "RAG" ] && [ "$DEMONSTRATION_NUM" > 1 ]; then
     RUN_CMD="$RUN_CMD --reverse_rag_order" 
+    EVA_CMD="$EVA_CMD --reverse_rag_order"
 fi
 
 # echo "Building the langchain_dataset, Running: $LANGCHAIN_CMD"
