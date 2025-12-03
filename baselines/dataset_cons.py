@@ -18,7 +18,10 @@ class DatasetCons:
         self.dataset_name = args.dataset_name
         self.data_path = "../rag_data"
         self.ds_cot = args.ds_cot    # 这个参数主要是针对gsm8k和ProntoQA数据集，这两个数据集有自己的cot，该参数设置为true时，就使用ds接口生成的cot来构建langchian数据集，为false时，使用这两个数据集默认的cot
-        self.embedding_path = "../llms/text2vec-large-chinese"
+        # self.embedding_path = "../llms/text2vec-large-chinese"
+        # self.embedding_path = "../llms/bge-large-en"
+        # self.embedding_path = "../llms/bge-large-en-v1.5"
+        self.embedding_path = args.embedding_model
         self.db_type = args.db_type    # 可选值有embedding bm25，默认是bm25
         self.bm25_file = "bm25_index.pkl"
         self.top_k = args.top_k
@@ -160,6 +163,7 @@ class DatasetCons:
         if not os.path.exists(save_index_path):
             os.makedirs(save_index_path)
         if self.db_type== "embedding":
+            print("loadding embedding model from local path:", self.embedding_path)
             self.embedding = HuggingFaceEmbeddings(model_name=self.embedding_path)   # 直接本地加载
             vector_store = faiss.FAISS.from_documents(documents, self.embedding)
             vector_store.save_local(save_index_path)
@@ -176,7 +180,9 @@ class DatasetCons:
 # 构建一个利用langchain数据库进行处理的类
 class DatasetRetriever:
     def __init__(self, args):
-        self.embedding_path = "../llms/text2vec-large-chinese"
+        # self.embedding_path = "../llms/text2vec-large-chinese"
+        # self.embedding_path = "../llms/bge-large-en"
+        self.embedding_path = args.embedding_model
         self.db_name = args.db_name   # 作为外部demonstration的检索库
         self.db_type = args.db_type
         self.langchain_db_path = Path("../rag_db") / f"{self.db_name}"
@@ -189,6 +195,7 @@ class DatasetRetriever:
     def retriever_init(self):
         if self.db_type == "embedding":
             # 载入本地faiss向量数据库
+            print("loadding embedding model from local path:", self.embedding_path)
             self.embedding = HuggingFaceEmbeddings(model_name = self.embedding_path)
             print('this is the faiss retriever')
             self.vector_store = faiss.FAISS.load_local(self.langchain_db_path, self.embedding, allow_dangerous_deserialization=True)
@@ -252,6 +259,7 @@ def parse_args():
     parser.add_argument("--db_split", type=str, help="所使用的数据集split", default="train")
     parser.add_argument("--top_k",type=int, help="检索时返回的topk样例个数", default=3)
     parser.add_argument("--db_name", type=str, help="langchain数据库的名字，主要是检索时用，区分源、目标域")
+    parser.add_argument("--embedding_model", type=str, help="所使用的embedding模型名字", default="../llm/bge-large-en-v1.5")
     args = parser.parse_args()
     return args
 

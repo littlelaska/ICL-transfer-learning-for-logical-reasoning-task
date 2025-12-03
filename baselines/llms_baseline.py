@@ -549,6 +549,7 @@ def parse_args():
     parser.add_argument("--user_template_dir", type=str, default="./user_template", help="用于存放user template文件的dir路径")
     parser.add_argument("--dtype", type=str, default="float16")
     parser.add_argument('--reverse_rag_order', default=False, action='store_true')
+    parser.add_argument("--embedding_model", type=str, help="所使用的embedding模型名字", default="../llm/bge-large-en-v1.5")
     args = parser.parse_args()
     return args
 
