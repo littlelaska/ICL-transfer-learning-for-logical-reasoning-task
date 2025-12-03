@@ -113,7 +113,7 @@ class LLM_Reasoning_Graph_Baseline:
         # 结果存储路径初始化
         # 统一定义存储路径
         if self.mode == "RAG":
-            self.save_file = os.path.join(self.save_path, f'{self.mode}{self.rag_icl_num}_{self.db_name}_{self.db_type}_{self.dataset_name}_{self.split}_{self.model_name}.json')
+            self.save_file = os.path.join(self.save_path, f'{self.mode}{self.rag_icl_num}_{self.db_name}_{self.db_type}{"_reversed" if self.reverse_rag_order else ""}_{self.dataset_name}_{self.split}_{self.model_name}.json')
             # laska定义一个保存检索中间结果的文件
             if not os.path.exists(self.rag_result_path):
                 os.makedirs(self.rag_result_path)

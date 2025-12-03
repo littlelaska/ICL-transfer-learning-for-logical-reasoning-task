@@ -40,6 +40,7 @@ class LLM_Reasoning_Graph_Baseline:
         self.rag_result_path = args.rag_result_path
         self.system_prompt_dir = args.system_prompt_dir
         self.user_template_dir = args.user_template_dir
+        self.reverse_rag_order = args.reverse_rag_order
         
         self.dtype = args.dtype
         # 对需要的部分数据进行初始化
@@ -112,7 +113,7 @@ class LLM_Reasoning_Graph_Baseline:
         # 结果存储路径初始化
         # 统一定义存储路径
         if self.mode == "RAG":
-            self.save_file = os.path.join(self.save_path, f'{self.mode}{self.rag_icl_num}_{self.db_name}_{self.db_type}_{self.dataset_name}_{self.split}_{self.model_name}.json')
+            self.save_file = os.path.join(self.save_path, f'{self.mode}{self.rag_icl_num}_{self.db_name}_{self.db_type}{"_reversed" if self.reverse_rag_order else ""}_{self.dataset_name}_{self.split}_{self.model_name}.json')
             # laska定义一个保存检索中间结果的文件
             if not os.path.exists(self.rag_result_path):
                 os.makedirs(self.rag_result_path)
@@ -258,7 +259,15 @@ class LLM_Reasoning_Graph_Baseline:
 #             print(icl_template)
             # 构建检索的数据集
             overall_demonstration = ""
-            for result in retrieved_results[:self.rag_icl_num]:
+
+            # 先根据需要倒序
+            if self.reverse_rag_order:
+                candidates = retrieved_results[:self.rag_icl_num][::-1]   # 倒序挑前 N
+            else:
+                candidates = retrieved_results[:self.rag_icl_num]         # 正序挑前 N
+
+            # 用 candidates 来循环  
+            for result in candidates:
                 overall_demonstration += icl_template.format(
                     context=result['context'],
                     question=result['question'],
@@ -539,6 +548,7 @@ def parse_args():
     # 2025.11.11 user_template_dir
     parser.add_argument("--user_template_dir", type=str, default="./user_template", help="用于存放user template文件的dir路径")
     parser.add_argument("--dtype", type=str, default="float16")
+    parser.add_argument('--reverse_rag_order', default=False, action='store_true')
     args = parser.parse_args()
     return args
 

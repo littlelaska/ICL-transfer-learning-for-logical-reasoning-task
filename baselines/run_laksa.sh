@@ -5,10 +5,10 @@ SPLIT="test"
 LANGCHAIN_DB="FOLIO"    # gsm8k//ProntoQA/FOLIO/ProofWriter/LogicalDeduction
 DB_TYPE="embedding"   # bm25/embedding
 RAG_TOPK=10
-DEMONSTRATION_NUM=1
+DEMONSTRATION_NUM=4
 ZERO_SHOT=true
 DTYPE="float16"
-
+REVERSE_FLAG=false
 
 LANGCHAIN_CMD="python dataset_cons.py --dataset_name $LANGCHAIN_DB --db_name $LANGCHAIN_DB --db_type $DB_TYPE --top_k $RAG_TOPK  --ds_cot"
 
@@ -21,6 +21,11 @@ if [ "$ZERO_SHOT" = true ] && [ "$MODE" != "RAG" ]; then
     EVA_CMD="$EVA_CMD --zero_shot"
     
 fi
+
+if [ "$REVERSE_FLAG" = true ] && [ "$MODE" = "RAG" ] && [ "$DEMONSTRATION_NUM" > 1 ]; then
+    RUN_CMD="$RUN_CMD --reverse_rag_order" 
+fi
+
 # echo "Building the langchain_dataset, Running: $LANGCHAIN_CMD"
 # $LANGCHAIN_CMD
 
@@ -29,4 +34,3 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 $RUN_CMD
 
 echo "Running: $EVA_CMD"
 $EVA_CMD
-
