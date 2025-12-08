@@ -1,5 +1,5 @@
 MODE="RAG"    # CoT/Direct/RAG/Logical
-DATASET_NAME="AR-LSAT"    # gsm8k/ProntoQA/AR-LSAT/FOLIO/ProofWriter/LogicalDeduction
+DATASET_NAME="ProofWriter"    # gsm8k/ProntoQA/AR-LSAT/FOLIO/ProofWriter/LogicalDeduction
 MODEL_NAME="qwen7"   # qwen14/qwen7/qwen3-8
 SPLIT="test"
 LANGCHAIN_DB="FOLIO"    # gsm8k//ProntoQA/FOLIO/ProofWriter/LogicalDeduction

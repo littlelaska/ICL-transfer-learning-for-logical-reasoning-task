@@ -4,13 +4,14 @@
 # 固定配置（按需改）
 # ==============================
 MODE="RAG"                     # CoT / Direct / RAG / Logical
-MODEL_NAME="qwen14"            # 给定模型
+MODEL_NAME="qwen7"            # 给定模型
 RAG_TOPK=10
-BATCH_SIZE=8
+BATCH_SIZE=32
 MAX_NEW_TOKENS=8192
 ZERO_SHOT=false                # 这里只跑 1–4 shot，所以不启用 zero-shot
 DTYPE="float16"
-DB_TYPE="embedding"              # bm25  / embedding
+DB_TYPE="bm25"              # bm25  / embedding
+EMBDEDDING_MODEL="../llms/bge-large-en-v1.5"   # text2vec-large-chinese/bge-large-en/bge-large-en-v1.5
 
 # 源域（demo 来源）
 SOURCE_DOMAINS=("ProntoQA" "LogicalDeduction" "FOLIO" "ProofWriter" "gsm8k")
@@ -19,7 +20,7 @@ SOURCE_DOMAINS=("ProntoQA" "LogicalDeduction" "FOLIO" "ProofWriter" "gsm8k")
 TARGET_DOMAINS=("gsm8k" "ProntoQA" "AR-LSAT" "ProofWriter" "FOLIO" "LogicalDeduction")
 
 # shots: 1, 2, 3, 4
-SHOTS=(1 2 3 4)
+SHOTS=(0 1 2 3 4)
 
 
 # ==============================
@@ -79,7 +80,8 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
       --dataset_name ${SRC} \
       --db_name ${SRC} \
       --db_type ${DB_TYPE} \
-      --top_k ${RAG_TOPK}"
+      --top_k ${RAG_TOPK} \
+      --embedding_model ${EMBDEDDING_MODEL}"
       
       if [[ "${SRC}" != "ProntoQA" && "${SRC}" != "AR-LSAT" ]]; then 
         LANGCHAIN_CMD="${LANGCHAIN_CMD} --ds_cot"
@@ -100,6 +102,7 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         --use_vllm \
         --dtype ${DTYPE} \
         --db_type ${DB_TYPE} \
+        --embedding_model ${EMBDEDDING_MODEL} \
         --all_data_switch"
 
       EVA_CMD="python evaluation.py \
