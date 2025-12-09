@@ -11,6 +11,8 @@ import argparse
 
 embedding_path = "../llms/text2vec-large-chinese"
 
+from openicl import TopkRetriever
+
 
 # 将gsm8k或者其他数据集构建处理成向量库
 class DatasetCons:
@@ -174,6 +176,10 @@ class DatasetCons:
             with open(save_pickle_path, "wb") as f:
                 pickle.dump(retriever, f)
             print(f"BM25 Vector store saved to {save_pickle_path}")
+
+        # 20251208测试topk_cone算法
+        elif self.db_type == "topk_cone":
+            pass
         else:
             raise ValueError(f"not a valid db_type: {self.db_type}! must be embedding or bm25")
 
