@@ -254,6 +254,7 @@ class LLM_Reasoning_Graph_Baseline:
         # 2025.11.11 增加rag的prompt构造
         # 所有数据集都有question域
         if self.mode == "RAG":
+#             print(test_example)
             rag_query = test_example["question"].strip()
             retrieved_results = self.dataset_retriever.retrieve(rag_query, self.rag_topk)
             # 制定一个template 
@@ -495,11 +496,11 @@ class LLM_Reasoning_Graph_Baseline:
         outputs = []
         # split dataset into chunks
         num_examples = len(raw_dataset)
-        # dataset_chunks = [raw_dataset[i:i + batch_size] for i in range(0, len(raw_dataset), batch_size)]
+#         dataset_chunks = [raw_dataset[i:i + batch_size] for i in range(0, len(raw_dataset), batch_size)]
         # for chunk in tqdm(dataset_chunks):
         for start in tqdm(range(0, num_examples, batch_size)):
             end = min(start + batch_size, num_examples)
-            chunk = raw_dataset[start:end]
+            chunk = raw_dataset.select(range(start, end))
             # create prompt
             full_prompts = [self.prompt_creator(in_context_examples, example) for example in chunk]
             # 调用模型进行batch的预测

@@ -32,7 +32,7 @@ echo "Building the langchain_dataset, Running: $LANGCHAIN_CMD"
 $LANGCHAIN_CMD
 
 echo "Running: $RUN_CMD"
-CUDA_VISIBLE_DEVICES=1,2 $RUN_CMD
+CUDA_VISIBLE_DEVICES=0,1,2,3 $RUN_CMD
 
 echo "Running: $EVA_CMD"
 $EVA_CMD

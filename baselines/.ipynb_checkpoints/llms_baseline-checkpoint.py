@@ -13,6 +13,8 @@ import random
 import numpy as np
 import torch
 
+from datasets import load_dataset, Dataset
+
 seed = 42
 random.seed(seed)
 np.random.seed(seed)
@@ -252,6 +254,7 @@ class LLM_Reasoning_Graph_Baseline:
         # 2025.11.11 增加rag的prompt构造
         # 所有数据集都有question域
         if self.mode == "RAG":
+#             print(test_example)
             rag_query = test_example["question"].strip()
             retrieved_results = self.dataset_retriever.retrieve(rag_query, self.rag_topk)
             # 制定一个template 
@@ -345,7 +348,34 @@ class LLM_Reasoning_Graph_Baseline:
             in_context_examples = f.read()
         return in_context_examples
 
+    # laska 加载本地数据集，2025.12.09
+    # 使用HuggingFace datasets库加载本地数据集
     def load_raw_dataset(self, split):
+        """
+        使用 HuggingFace datasets 库加载本地 JSON / JSONL 数据。
+        约定：
+        - gsm8k:  文件名为 {split}.jsonl
+        - 其他数据集: 文件名为 {split}.json
+        """
+        if self.dataset_name == "gsm8k":
+            file_name = f"{split}.jsonl"   # 原来就是 jsonl
+        else:
+            file_name = f"{split}.json"
+
+        data_file = os.path.join(self.data_path, self.dataset_name, file_name)
+
+        # 用 datasets 读本地 json/jsonl
+        # 这里用 data_files={split: path} 的形式，方便保留 split 名字
+        ds_dict = load_dataset(
+            "json",
+            data_files={split: data_file}
+        )
+        raw_dataset: Dataset = ds_dict[split]
+
+        print(f"[datasets] Loaded {len(raw_dataset)} examples from {data_file}")
+        return raw_dataset
+
+    def load_raw_dataset_old(self, split):
         if self.dataset_name == "gsm8k":
             with open(os.path.join(self.data_path, self.dataset_name, f"{self.split}.jsonl"), 'r') as f:
                 raw_dataset = [json.loads(line) for line in f]
@@ -410,7 +440,7 @@ class LLM_Reasoning_Graph_Baseline:
     def reasoning_graph_generation(self):
         # load raw dataset
         raw_dataset = self.load_raw_dataset(self.split)
-        print(f"Loaded {len(raw_dataset)} examples from {self.split} split.")
+        print(f"Loaded {len(raw_dataset)} examples from split = {self.split}.")
 
         # load in-context examples
         in_context_examples = self.load_in_context_examples()
@@ -465,8 +495,12 @@ class LLM_Reasoning_Graph_Baseline:
             
         outputs = []
         # split dataset into chunks
-        dataset_chunks = [raw_dataset[i:i + batch_size] for i in range(0, len(raw_dataset), batch_size)]
-        for chunk in tqdm(dataset_chunks):
+        num_examples = len(raw_dataset)
+#         dataset_chunks = [raw_dataset[i:i + batch_size] for i in range(0, len(raw_dataset), batch_size)]
+        # for chunk in tqdm(dataset_chunks):
+        for start in tqdm(range(0, num_examples, batch_size)):
+            end = min(start + batch_size, num_examples)
+            chunk = raw_dataset.select(range(start, end))
             # create prompt
             full_prompts = [self.prompt_creator(in_context_examples, example) for example in chunk]
             # 调用模型进行batch的预测
@@ -549,6 +583,7 @@ def parse_args():
     parser.add_argument("--user_template_dir", type=str, default="./user_template", help="用于存放user template文件的dir路径")
     parser.add_argument("--dtype", type=str, default="float16")
     parser.add_argument('--reverse_rag_order', default=False, action='store_true')
+    parser.add_argument("--embedding_model", type=str, help="所使用的embedding模型名字", default="../llm/bge-large-en-v1.5")
     args = parser.parse_args()
     return args
 
