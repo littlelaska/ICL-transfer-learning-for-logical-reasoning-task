@@ -33,6 +33,9 @@ def generate_answer(model, tokenizer, sampling_params ,query, system_prompt,max_
 #     response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
     return response
 
+def model_logits(model, toke):
+    pass
+
 if __name__=="__main__":
     model, tokenizer,sampling_params = load_model(model_path)
     system_prompt = "You are a logical task solver. Follow the demonstrationa to solve the new question. Remember to think step by step with concise chain-of-thought, and adhere to the context related to the question. Then on a new line, output exactly: 'The correct option is: A' or 'The correct option is: B"
