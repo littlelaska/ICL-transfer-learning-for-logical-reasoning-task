@@ -121,9 +121,9 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         echo "[CMD] ${LANGCHAIN_CMD}"
         echo "[CMD] ${RUN_CMD}"
         echo "-------------------------------------------"
-        ${LANGCHAIN_CMD}
+        # ${LANGCHAIN_CMD}
         echo "-------------------------------------------"
-        CUDA_VISIBLE_DEVICES=0,1,2,3 ${RUN_CMD}
+        CUDA_VISIBLE_DEVICES=1,2 ${RUN_CMD}
         
         echo "================ EVAL START ================"
         echo "[CMD] ${EVA_CMD}"

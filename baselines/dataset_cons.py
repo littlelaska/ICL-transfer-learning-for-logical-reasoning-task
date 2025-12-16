@@ -11,7 +11,7 @@ import argparse
 
 embedding_path = "../llms/text2vec-large-chinese"
 
-from openicl import TopkRetriever
+# from openicl import TopkRetriever
 
 
 # 将gsm8k或者其他数据集构建处理成向量库

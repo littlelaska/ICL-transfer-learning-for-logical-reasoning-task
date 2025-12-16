@@ -4,3 +4,5 @@ baselines/results/
 baselines/rag_results/
 baselines/logs/
 .ipynb_checkpoints/
+
+*.pyc
