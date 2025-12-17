@@ -14,6 +14,7 @@ import numpy as np
 import torch
 
 from datasets import load_dataset, Dataset
+from copy import deepcopy
 
 seed = 42
 random.seed(seed)
@@ -43,7 +44,7 @@ class LLM_Reasoning_Graph_Baseline:
         self.system_prompt_dir = args.system_prompt_dir
         self.user_template_dir = args.user_template_dir
         self.reverse_rag_order = args.reverse_rag_order
-        
+        self.rerank = args.rerank
         self.dtype = args.dtype
         # 对需要的部分数据进行初始化
         self.para_init()
@@ -171,6 +172,104 @@ class LLM_Reasoning_Graph_Baseline:
             print("loading complete")
             return tokenizer, model
 
+    # 20251216 新增一个cone利用条件概率重排的功能
+    def cone_rerank(self, retrieved_results, test_example):
+        icl_template = self.load_icl_template()   # 需要加载模板，拼接之后给模型，查看对loss是否有提升
+        user_prompt_template = self.load_user_prompt_template()
+        role_content = self.load_system_prompt()
+        chat_template_texts = []
+        mask_lengths_idxs = []
+        max_length = 0
+        for result in retrieved_results:
+            # 将当前的检索结果拼接成
+            new_icl_template = deepcopy(icl_template)
+            cur_icl = new_icl_template.format(
+                context=result['context'],
+                question=result['question'],
+                options='\n'.join([opt.strip() for opt in result.get("options", [])]),
+                cot=result['cot'],
+                answer=result['answer']
+                )
+            new_user_prompt_template = deepcopy(user_prompt_template)
+            cur_full_prompt = new_user_prompt_template.replace("[[DEMONSTRATIONS]]", cur_icl)
+
+            # 先将query等内容也进行替换 
+            if self.dataset_name == "gsm8k":
+                question = test_example["question"].strip()
+                cur_full_prompt = cur_full_prompt.replace('[[QUESTION]]', question)
+            else:
+                context = test_example['context'].strip()
+                question = test_example['question'].strip()
+                options = '\n'.join([opt.strip() for opt in test_example['options']])
+                cur_full_prompt = cur_full_prompt.replace('[[CONTEXT]]', context)
+                cur_full_prompt = cur_full_prompt.replace('[[QUESTION]]', question)
+                cur_full_prompt = cur_full_prompt.replace('[[OPTIONS]]', options)
+            # 先替换成为messages形式，并apply_chat_template，然后计算mask_length
+            cur_messages = [{"role": "system", "content": role_content},
+                            {"role":"user", "content": cur_full_prompt}]
+            cur_text = self.tokenizer.apply_chat_template(cur_messages, add_generation_prompt=True, tokenize=False)
+            if len(cur_text) > max_length:
+                max_length = len(cur_text)
+            # 存入列表供后续操作
+            chat_template_texts.append(cur_text)
+            
+            # 获取icl demonstration的结束位置，计算mask length
+            first_context_idx = cur_text.find("Context:")
+            second_context_idx = cur_text.find("Context:", first_context_idx+1)
+        
+            mask_lengths_idxs.append(second_context_idx)
+        
+        # 需要一条条对text进行处理
+        model_input_ids = [self.tokenizer(chat_template_text, return_tensors="pt").input_ids for chat_template_text in chat_template_texts]
+        input_mask_lengths = [self.tokenizer(chat_template_texts[idx][:mask_lengths_idxs[idx]], return_tensors="pt").input_ids.shape[1] for idx in range(len(mask_lengths_idxs))]
+        # 需要注意。列表里面的input是一个二维数组，1*len
+
+        # vllm cone params
+        vllm_cone_params = SamplingParams(temperature=0, max_tokens=1, prompt_logprobs=20, detokenize=False)
+        # 调用vllm模型进行logits的获取
+        if self.vllm_switch == True:
+            # 需要注意，vllm的输入是tokenizer之前的texts
+            vllm_outputs = self.model.generate(chat_template_texts, sampling_params=vllm_cone_params)
+            ce_loss = self.ce_loss_cal(model_input_ids, vllm_outputs, input_mask_lengths)
+            sorted_idx = torch.argsort(ce_loss)   # 默认升序
+            # 按照获取到的ce_loss，对检索到的内容进行排序
+            return sorted_idx   # 返回idx,用于对检索结果进行处理
+        else:   # 针对transformers模型的处理方法
+            pass
+
+    # 定义一个ce_loss的计算函数，输入是模型inputs和outputs
+    def ce_loss_cal(self, input_ids, outputs, mask_lengths):
+        all_losses = []
+        for ids, out in zip(input_ids, outputs):   # 这里应该和batch size一致？
+            # 这里的ids是是一个[1,seq_len]的二维数组
+            ids = ids.view(ids.shape[1])   # 需要将二维数组ids展开为一维数组，长度直接是seq_len
+            token_losses = []
+            for tok_id, lp in zip(ids, out.prompt_logprobs):
+        
+                if lp is None:
+                    token_losses.append(0.0)
+                    continue
+                info = lp.get(int(tok_id), None)
+                if info is None:   
+                    token_losses.append(20.0)    # fallback,赋予一个大loss
+                else:
+                    token_losses.append(-info.logprob)
+            all_losses.append(torch.tensor(token_losses))
+        # 对loss进行计算
+        loss = torch.nn.utils.rnn.pad_sequence(all_losses, batch_first=True, padding_value=0.0)
+        
+        # 按照mask的长度进行mask
+        mask = torch.zeros_like(loss)
+        for i in range(len(mask_lengths)):
+            # print(mask_lengths[i], mask[i].shape)
+            mask[i, mask_lengths[i]:input_ids[i].shape[1]] = 1
+  
+        # 将context部分的loss进行mask
+        loss = mask * loss
+        # print(loss)
+        ce_loss = torch.sum(loss, 1)
+        return ce_loss
+
     # laska 构建使用rag动态变化demonstration的prompt生成器
     def rag_prompt_creator(self, in_context_example, test_example):
         # 2025.11.11 add system prompt
@@ -250,18 +349,28 @@ class LLM_Reasoning_Graph_Baseline:
             print(full_prompt)            
             print("-"*36)
             type(self).prompt_LSAT._has_run = True
-        
+
         # 2025.11.11 增加rag的prompt构造
         # 所有数据集都有question域
         if self.mode == "RAG":
 #             print(test_example)
             rag_query = test_example["question"].strip()
-            retrieved_results = self.dataset_retriever.retrieve(rag_query, self.rag_topk)
+            retrieved_results = self.dataset_retriever.retrieve(rag_query, self.rag_topk)   # 检索回来的会比实际需要的多
             # 制定一个template 
             icl_template = self.load_icl_template()
 #             print(icl_template)
             # 构建检索的数据集
             overall_demonstration = ""
+            
+            # laska 20251216新增rerank 逻辑
+            if self.rerank:
+                # print(retrieved_results[0])
+                sorted_idx = self.cone_rerank(retrieved_results, test_example)
+                # 对retrieved_results进行重排序
+                retrieved_results = [retrieved_results[idx] for idx in sorted_idx]
+                # print("after sorted~")
+                # print(retrieved_results[0])
+                # exit()
 
             # 先根据需要倒序
             if self.reverse_rag_order:
@@ -327,14 +436,6 @@ class LLM_Reasoning_Graph_Baseline:
             full_prompt = full_prompt.replace('[[CONTEXT]]', context)
             full_prompt = full_prompt.replace('[[QUESTION]]', question)
             full_prompt = full_prompt.replace('[[OPTIONS]]', options)
-            # # laska 10.27测试逻辑prompt
-            # if self.mode == 'Logical':
-            #     full_prompt = f"Context: {context}\nQuestion: {question}\n"
-            # elif self.mode == "Direct":
-            #     full_prompt = f"Context: {context}\nQuestion: {question}\nOptions:\n{options}\nPlease answer the question directly, directly give the answer option. The correct option is:"
-            # elif self.mode == "CoT":
-          
-            #     full_prompt = f"Context: {context}\nQuestion: {question}\nOptions:\n{options}\nLet's think step by step. The correct option is:"
 
         messages = [
             {"role":"system", "content":role_content},  
@@ -584,6 +685,8 @@ def parse_args():
     parser.add_argument("--dtype", type=str, default="float16")
     parser.add_argument('--reverse_rag_order', default=False, action='store_true')
     parser.add_argument("--embedding_model", type=str, help="所使用的embedding模型名字", default="../llm/bge-large-en-v1.5")
+    # 20251216 新增cone 的rerank功能
+    parser.add_argument("--rerank", default=False, help="是否对检索的候选进行cone重排序",action='store_true')
     args = parser.parse_args()
     return args
 

@@ -12,6 +12,8 @@ ZERO_SHOT=false                # 这里只跑 1–4 shot，所以不启用 zero-
 DTYPE="float16"
 DB_TYPE="bm25"              # bm25  / embedding
 EMBDEDDING_MODEL="../llms/bge-large-en-v1.5"   # text2vec-large-chinese/bge-large-en/bge-large-en-v1.5
+REVERSE_FLAG=false
+CONE_RERANK=true
 
 # 源域（demo 来源）
 SOURCE_DOMAINS=("ProntoQA" "LogicalDeduction" "FOLIO" "ProofWriter" "gsm8k")
@@ -104,6 +106,10 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         --db_type ${DB_TYPE} \
         --embedding_model ${EMBDEDDING_MODEL} \
         --all_data_switch"
+        
+      if [ "$CONE_RERANK" = true ] && [ "$MODE" = "RAG" ]; then
+        RUN_CMD="$RUN_CMD --rerank"
+      fi
 
       EVA_CMD="python evaluation.py \
         --dataset_name ${TGT} \
@@ -113,7 +119,11 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         --db_name ${SRC} \
         --db_type ${DB_TYPE} \
         --icl_num ${DEMONSTRATION_NUM}"
-
+      
+      if [ "$REVERSE_FLAG" = true ] && [ "$MODE" = "RAG" ] && [ "$DEMONSTRATION_NUM" > 1 ]; then
+        RUN_CMD="$RUN_CMD --reverse_rag_order"
+        EVA_CMD="$EVA_CMD --reverse_rag_order"
+      fi
 
       {
         echo "================ RUN START ================"

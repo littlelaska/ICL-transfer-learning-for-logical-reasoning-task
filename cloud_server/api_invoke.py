@@ -29,7 +29,8 @@ class DatasetCotGen:
         # 开关决定是对所有数据进行处理还是对单条数据进行测试
         self.all_data_switch = all_data_switch
         if not api_key:
-            self.api_key = "TnumU6cM" #默认服务密钥
+            # self.api_key = "TnumU6cM" #默认服务密钥
+            self.api_key = "mY61VVV5"
         else:
             self.api_key = api_key
         self.CLOUD_IP = "47.115.134.188"
@@ -69,7 +70,7 @@ class DatasetCotGen:
         mid = (left + right) // 2
         # print(type(arr[mid]))
         # print(arr[mid])
-        if arr[mid][target_col_name].startswith("[ERROR]"):
+        if arr[mid][target_col_name] == None or arr[mid][target_col_name].startswith("[ERROR]"):
             return self.binary_search_recursive(arr, target_col_name, left, mid)
         else:
             return self.binary_search_recursive(arr, target_col_name, mid + 1, right)
@@ -125,5 +126,5 @@ class DatasetCotGen:
 
 
 if __name__ == "__main__":
-    dataset_cot_gen = DatasetCotGen(dataset_name="AR-LSAT", split="dev", all_data_switch=False, save_path="./results/")
+    dataset_cot_gen = DatasetCotGen(dataset_name="gsm8k", split="train", all_data_switch=False, save_path="./results/")
     dataset_cot_gen.retrieve_query_res(all_data_switch=True)
