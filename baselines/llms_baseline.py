@@ -229,8 +229,38 @@ class LLM_Reasoning_Graph_Baseline:
         # 调用vllm模型进行logits的获取
         if self.vllm_switch == True:
             # 需要注意，vllm的输入是tokenizer之前的texts
-            vllm_outputs = self.model.generate(chat_template_texts, sampling_params=vllm_cone_params)
-            ce_loss = self.ce_loss_cal(model_input_ids, vllm_outputs, input_mask_lengths)
+            # 这一部分需要拆分成batch进行计算，不然会vllm
+            cone_batch_size =4
+
+            ce_list = []
+            n = len(chat_template_texts)
+            for start in range(0, n, cone_batch_size):
+                end = min(start + cone_batch_size, n)
+
+                sub_texts = chat_template_texts[start:end]
+                sub_input_ids = model_input_ids[start:end]
+                sub_mask_lengths = input_mask_lengths[start:end]
+
+                # vLLM 的输入用原始文本；不在这里做 tokenizer.to(device)
+                vllm_outputs = self.model.generate(
+                    sub_texts,
+                    sampling_params=vllm_cone_params,
+                    use_tqdm=False,
+                )
+
+                # 你自己的 CE 计算函数：注意它内部再搬到 GPU
+                sub_ce = self.ce_loss_cal(sub_input_ids, vllm_outputs, sub_mask_lengths)
+                ce_list.append(sub_ce.detach().cpu())
+
+                # 释放这一个小 batch 的中间结果
+                del vllm_outputs
+                del sub_ce
+                torch.cuda.empty_cache()
+
+            # 拼回完整的 ce_loss 向量
+            ce_loss = torch.cat(ce_list, dim=0)
+            # vllm_outputs = self.model.generate(chat_template_texts, sampling_params=vllm_cone_params)
+            # ce_loss = self.ce_loss_cal(model_input_ids, vllm_outputs, input_mask_lengths)
             sorted_idx = torch.argsort(ce_loss)   # 默认升序
             # 按照获取到的ce_loss，对检索到的内容进行排序
             return sorted_idx   # 返回idx,用于对检索结果进行处理
