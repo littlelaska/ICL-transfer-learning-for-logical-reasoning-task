@@ -8,6 +8,7 @@ import pickle
 import json
 import os 
 import argparse
+import random
 
 embedding_path = "../llms/text2vec-large-chinese"
 
@@ -256,6 +257,69 @@ class DatasetRetriever:
             })
         return retrieve_list
 
+# 构建一个随机选择的类
+class RandomRetriever(DatasetCons):
+    def __init__(self, args):
+        self.dataset_name = args.db_name
+        self.data_path = "../rag_data"
+        self.ds_cot = args.ds_cot
+        self.split = args.db_split
+        self.label_phrases = ["The correct option is:", "the correct option is:", "The final answer is:", "the final answer is:"]
+        self.documents = self.retriever_init()
+        pass
+
+    def retriever_init(self):
+        if self.dataset_name not in ["ProntoQA","AR-LSAT","ProofWriter", "LogicalDeduction","FOLIO", "gsm8k"]:
+            print(f"the wrong dataset {self.dataset_name} were provided. Ended the program!")
+            return
+        # 加载调用deepseek端口的cot
+        if self.ds_cot==True and self.dataset_name in ["ProntoQA","AR-LSAT","ProofWriter", "LogicalDeduction","FOLIO"]:
+            load_fn = self.logical_task_common_cot_load_data
+        elif self.dataset_name in ["gsm8k", "ProntoQA"]:
+            load_fn = getattr(self, f"{self.dataset_name}_load_data")
+        else:
+            raise ValueError(f"Unknown dataset:{self.dataset_name}, unrecognized load type:{self.ds_cot}")
+        documents = load_fn()
+        print("the langchain documents num is :", len(documents))
+        return documents
+    
+    def retrieve(self, query, k=10):
+        results = random.sample(self.documents, k)
+        retrieve_list = []
+        for i, doc in enumerate(results):
+            # print(f"Result {i+1}:")
+            # print("Content:", doc.page_content)
+            # print("Metadata:", doc.metadata)
+            # print("-------------------")
+            page_content = doc.page_content
+            metadata = doc.metadata
+            if self.dataset_name == "gsm8k":
+                context = ""
+                question = page_content
+                answer = metadata.get("answer", "")
+                options = ""
+                cot = metadata.get("cot", "")
+            # 20251119修改
+            elif self.dataset_name in ["ProntoQA","AR-LSAT","ProofWriter", "LogicalDeduction","FOLIO"]:
+                context = metadata.get("context", "")
+                question = metadata.get("question", "")
+                options = metadata.get("options", "")
+                answer = metadata.get("answer", "")
+                cot = metadata.get("cot", "")
+                if self.db_name == "ProntoQA":
+                    cot = metadata.get("cot") or metadata.get("explanation", "")
+            else:
+                raise ValueError("the retriever method are not supported~!", self.dataset_name)
+          
+            retrieve_list.append({
+                "context": context,
+                "question": question,
+                "options": options,
+                "answer": answer,
+                "cot": cot
+            })
+        return retrieve_list
+
 # 添加parse处理参数
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -264,7 +328,7 @@ def parse_args():
     parser.add_argument("--ds_cot", help="是否使用ds接口生成的cot，还是用默认的数据,gsm8k和prontoQA有两种数据形式",default=False, action="store_true")
     parser.add_argument("--db_split", type=str, help="所使用的数据集split", default="train")
     parser.add_argument("--top_k",type=int, help="检索时返回的topk样例个数", default=3)
-    parser.add_argument("--db_name", type=str, help="langchain数据库的名字，主要是检索时用，区分源、目标域")
+    parser.add_argument("--db_name", type=str, help="langchain数据库的名字，主要是检索时用，区分源、目标域", default="gsm8k")
     parser.add_argument("--embedding_model", type=str, help="所使用的embedding模型名字", default="../llm/bge-large-en-v1.5")
     args = parser.parse_args()
     return args
@@ -274,11 +338,19 @@ if __name__ == "__main__":
     # 构建langchain检索向量数据库
     # laska 修改使用逻辑语言来进行icl
     data_path = "../rag_data"
-    dataset_cons = DatasetCons(args)
-    dataset_cons.build_vector_store()
+    # dataset_cons = DatasetCons(args)
+    # dataset_cons.build_vector_store()
 
     # 利用构建好的检索向量数据库进行实验
-    dataset_retriever = DatasetRetriever(args)
+    # dataset_retriever = DatasetRetriever(args)
+
+    # 测试随机检索器
+    random_retriever = RandomRetriever(args)
+    # print(dir(random_retriever))
+    print(type(random_retriever.documents))
+    res = random_retriever.retrieve()
+    print(res)
+    exit()
 
     context = "Jompuses are not shy. Jompuses are yumpuses. Each yumpus is aggressive. Each yumpus is a dumpus. Dumpuses are not wooden. Dumpuses are wumpuses. Wumpuses are red. Every wumpus is an impus. Each impus is opaque. Impuses are tumpuses. Numpuses are sour. Tumpuses are not sour. Tumpuses are vumpuses. Vumpuses are earthy. Every vumpus is a zumpus. Zumpuses are small. Zumpuses are rompuses. Max is a yumpus."
     question = "Is the following statement true or false? Max is sour."

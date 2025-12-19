@@ -4,7 +4,7 @@
 # 固定配置（按需改）
 # ==============================
 MODE="RAG"                     # CoT / Direct / RAG / Logical
-MODEL_NAME="qwen7"            # 给定模型
+MODEL_NAME="qwen14"            # 给定模型
 RAG_TOPK=10
 BATCH_SIZE=32
 MAX_NEW_TOKENS=8192
@@ -12,6 +12,8 @@ ZERO_SHOT=false                # 这里只跑 1–4 shot，所以不启用 zero-
 DTYPE="float16"
 DB_TYPE="embedding"              # bm25  / embedding
 EMBDEDDING_MODEL="../llms/bge-large-en-v1.5"   # text2vec-large-chinese/bge-large-en/bge-large-en-v1.5
+REVERSE_FLAG=false
+CONE_RERANK=true
 
 # 源域（demo 来源）
 SOURCE_DOMAINS=("ProntoQA" "LogicalDeduction" "FOLIO" "ProofWriter" "gsm8k")
@@ -20,7 +22,7 @@ SOURCE_DOMAINS=("ProntoQA" "LogicalDeduction" "FOLIO" "ProofWriter" "gsm8k")
 TARGET_DOMAINS=("gsm8k" "ProntoQA" "AR-LSAT" "ProofWriter" "FOLIO" "LogicalDeduction")
 
 # shots: 1, 2, 3, 4
-SHOTS=(0 1 2 3 4)
+SHOTS=(1 2 3 4)
 
 
 # ==============================
@@ -104,6 +106,10 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         --db_type ${DB_TYPE} \
         --embedding_model ${EMBDEDDING_MODEL} \
         --all_data_switch"
+        
+      if [ "$CONE_RERANK" = true ] && [ "$MODE" = "RAG" ]; then
+        RUN_CMD="$RUN_CMD --rerank"
+      fi
 
       EVA_CMD="python evaluation.py \
         --dataset_name ${TGT} \
@@ -113,7 +119,11 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         --db_name ${SRC} \
         --db_type ${DB_TYPE} \
         --icl_num ${DEMONSTRATION_NUM}"
-
+      
+      if [ "$REVERSE_FLAG" = true ] && [ "$MODE" = "RAG" ] && [ "$DEMONSTRATION_NUM" > 1 ]; then
+        RUN_CMD="$RUN_CMD --reverse_rag_order"
+        EVA_CMD="$EVA_CMD --reverse_rag_order"
+      fi
 
       {
         echo "================ RUN START ================"
@@ -121,9 +131,9 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         echo "[CMD] ${LANGCHAIN_CMD}"
         echo "[CMD] ${RUN_CMD}"
         echo "-------------------------------------------"
-        ${LANGCHAIN_CMD}
+        # ${LANGCHAIN_CMD}
         echo "-------------------------------------------"
-        CUDA_VISIBLE_DEVICES=1,2 ${RUN_CMD}
+        CUDA_VISIBLE_DEVICES=1 ${RUN_CMD}
         
         echo "================ EVAL START ================"
         echo "[CMD] ${EVA_CMD}"

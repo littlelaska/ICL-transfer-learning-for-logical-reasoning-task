@@ -7,7 +7,7 @@ import argparse
 # 尝试使用vllm加速模型推理
 from vllm import LLM, SamplingParams
 import torch
-from dataset_cons import DatasetRetriever
+from dataset_cons import DatasetRetriever, RandomRetriever
 
 import random
 import numpy as np
@@ -44,6 +44,7 @@ class LLM_Reasoning_Graph_Baseline:
         self.system_prompt_dir = args.system_prompt_dir
         self.user_template_dir = args.user_template_dir
         self.reverse_rag_order = args.reverse_rag_order
+        self.random_rag_order = args.random_rag_order
         self.rerank = args.rerank
         self.dtype = args.dtype
         # 对需要的部分数据进行初始化
@@ -80,7 +81,10 @@ class LLM_Reasoning_Graph_Baseline:
             self.rag_icl_num = args.icl_num   # 用于上下文学习的展示样例个数  
             self.db_name = args.db_name 
             self.index_path = args.index_path
-            self.dataset_retriever = DatasetRetriever(self.args)
+            if self.random_rag_order:
+                self.dataset_retriever = RandomRetriever(self.args)
+            else:
+                self.dataset_retriever = DatasetRetriever(self.args)
             self.db_type = args.db_type
             # rag所用的icl template文件路径，用于包装检索到的document
             self.icl_template_file =  f"{'gsm8k' if self.db_name == 'gsm8k' else 'LogicalReasoning'}_ICL_template.txt"
@@ -192,7 +196,6 @@ class LLM_Reasoning_Graph_Baseline:
                 )
             new_user_prompt_template = deepcopy(user_prompt_template)
             cur_full_prompt = new_user_prompt_template.replace("[[DEMONSTRATIONS]]", cur_icl)
-
             # 先将query等内容也进行替换 
             if self.dataset_name == "gsm8k":
                 question = test_example["question"].strip()
@@ -212,60 +215,90 @@ class LLM_Reasoning_Graph_Baseline:
                 max_length = len(cur_text)
             # 存入列表供后续操作
             chat_template_texts.append(cur_text)
-            
             # 获取icl demonstration的结束位置，计算mask length
             first_context_idx = cur_text.find("Context:")
             second_context_idx = cur_text.find("Context:", first_context_idx+1)
-        
             mask_lengths_idxs.append(second_context_idx)
-        
-        # 需要一条条对text进行处理
-        model_input_ids = [self.tokenizer(chat_template_text, return_tensors="pt").input_ids for chat_template_text in chat_template_texts]
+        # vllm 版本需要一条条对text进行处理
+        # model_input_ids = [self.tokenizer(chat_template_text, return_tensors="pt").input_ids for chat_template_text in chat_template_texts]
         input_mask_lengths = [self.tokenizer(chat_template_texts[idx][:mask_lengths_idxs[idx]], return_tensors="pt").input_ids.shape[1] for idx in range(len(mask_lengths_idxs))]
         # 需要注意。列表里面的input是一个二维数组，1*len
-
         # vllm cone params
         vllm_cone_params = SamplingParams(temperature=0, max_tokens=1, prompt_logprobs=20, detokenize=False)
-        # 调用vllm模型进行logits的获取
-        if self.vllm_switch == True:
-            # 需要注意，vllm的输入是tokenizer之前的texts
-            # 这一部分需要拆分成batch进行计算，不然会vllm
-            cone_batch_size =4
+        cone_batch_size =10
+        ce_list = []
+        n = len(chat_template_texts)
 
-            ce_list = []
-            n = len(chat_template_texts)
-            for start in range(0, n, cone_batch_size):
-                end = min(start + cone_batch_size, n)
+        for start in range(0, n, cone_batch_size):
+            end = min(start + cone_batch_size, n)
+            sub_texts = chat_template_texts[start:end]
+            # sub_input_ids = model_input_ids[start:end]
 
-                sub_texts = chat_template_texts[start:end]
-                sub_input_ids = model_input_ids[start:end]
+            # 调用vllm模型进行logits的获取
+            if self.vllm_switch == True:
+                # vllm 一条条处理input ids
+                sub_input_ids = [self.tokenizer(chat_text, return_tensors="pt").input_ids for chat_text in sub_texts]
                 sub_mask_lengths = input_mask_lengths[start:end]
-
                 # vLLM 的输入用原始文本；不在这里做 tokenizer.to(device)
                 vllm_outputs = self.model.generate(
                     sub_texts,
                     sampling_params=vllm_cone_params,
                     use_tqdm=False,
                 )
-
                 # 你自己的 CE 计算函数：注意它内部再搬到 GPU
                 sub_ce = self.ce_loss_cal(sub_input_ids, vllm_outputs, sub_mask_lengths)
                 ce_list.append(sub_ce.detach().cpu())
-
                 # 释放这一个小 batch 的中间结果
                 del vllm_outputs
                 del sub_ce
                 torch.cuda.empty_cache()
+            else:   # 针对transformers模型的处理方法   
+                sub_hf_input_ids = self.tokenizer(sub_texts, padding=True, return_tensors="pt").to(self.device)
+                # print("the input size are:", sub_hf_input_ids.input_ids.shape)
+                sub_mask_lengths = mask_lengths_idxs[start:end]
+                # 进行测试
+                with torch.no_grad():
+                    sub_hf_outputs = self.model(**sub_hf_input_ids)
+                padding_input_id_len = sub_hf_input_ids.input_ids.shape[1]
+                # 需要重新计算mask的位置
+                for ind in range(len(sub_mask_lengths)):
+                    ori_len = self.tokenizer(sub_texts[ind], return_tensors="pt").input_ids.shape[1]
+                    context_len =self.tokenizer(sub_texts[ind][:sub_mask_lengths[ind]], return_tensors="pt").input_ids.shape[1]
+                    new_mask_len = padding_input_id_len - ori_len + context_len
+                    # print("the new mask len is ", new_mask_len, context_len, ori_len)
+                    sub_new_mask_lengths = [new_mask_len, ] * len(sub_mask_lengths)
+                    break
+                # print("the new mask lengths are", sub_new_mask_lengths)
 
+                # 计算sub_ce_loss
+                shift_sub_logits = sub_hf_outputs.logits[...,:-1,:].contiguous()
+                shift_sub_labels = sub_hf_input_ids["input_ids"][...,1:].contiguous()
+
+                loss_fct = torch.nn.CrossEntropyLoss(reduction="none", ignore_index=self.tokenizer.pad_token_id)
+
+                shift_sub_logits = shift_sub_logits.view(-1, shift_sub_logits.size(-1))
+                sub_loss = loss_fct(shift_sub_logits, shift_sub_labels.view(-1)).view(shift_sub_labels.size())
+
+                # print(sub_loss.shape)
+                sub_mask = torch.zeros_like(sub_loss)
+                for i in range(len(sub_new_mask_lengths)):
+                    sub_mask[i, sub_new_mask_lengths[i]:] =1
+                sub_loss = sub_loss * sub_mask
+                # print(sub_loss)
+                sub_ce_loss = torch.sum(sub_loss, 1)
+                # print(sub_ce_loss)
+                ce_list.append(sub_ce_loss.detach().cpu())
+                del sub_hf_input_ids
+                del sub_hf_outputs
+                del sub_loss
+                del sub_mask
+                torch.cuda.empty_cache()
             # 拼回完整的 ce_loss 向量
             ce_loss = torch.cat(ce_list, dim=0)
-            # vllm_outputs = self.model.generate(chat_template_texts, sampling_params=vllm_cone_params)
-            # ce_loss = self.ce_loss_cal(model_input_ids, vllm_outputs, input_mask_lengths)
-            sorted_idx = torch.argsort(ce_loss)   # 默认升序
-            # 按照获取到的ce_loss，对检索到的内容进行排序
-            return sorted_idx   # 返回idx,用于对检索结果进行处理
-        else:   # 针对transformers模型的处理方法
-            pass
+        # print(ce_loss)
+        sorted_idx = torch.argsort(ce_loss)   # 默认升序
+        # exit()
+        return sorted_idx 
 
     # 定义一个ce_loss的计算函数，输入是模型inputs和outputs
     def ce_loss_cal(self, input_ids, outputs, mask_lengths):
@@ -714,6 +747,7 @@ def parse_args():
     parser.add_argument("--user_template_dir", type=str, default="./user_template", help="用于存放user template文件的dir路径")
     parser.add_argument("--dtype", type=str, default="float16")
     parser.add_argument('--reverse_rag_order', default=False, action='store_true')
+    parser.add_argument('--random_rag_order', default=False, action='store_true')
     parser.add_argument("--embedding_model", type=str, help="所使用的embedding模型名字", default="../llm/bge-large-en-v1.5")
     # 20251216 新增cone 的rerank功能
     parser.add_argument("--rerank", default=False, help="是否对检索的候选进行cone重排序",action='store_true')
