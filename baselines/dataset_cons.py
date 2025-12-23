@@ -25,7 +25,7 @@ class DatasetCons:
         # self.embedding_path = "../llms/bge-large-en"
         # self.embedding_path = "../llms/bge-large-en-v1.5"
         self.embedding_path = args.embedding_model
-        self.db_type = args.db_type    # 可选值有embedding bm25，默认是bm25
+        self.db_type = args.db_type    # 可选值有embedding bm25，默认是bm25，新加入一个random
         self.bm25_file = "bm25_index.pkl"
         self.top_k = args.top_k
         self.split = args.db_split
@@ -143,6 +143,9 @@ class DatasetCons:
         return documents
 
     def build_vector_store(self):
+        if self.db_type == "random":
+            print("the random retrieve mode dont need to build a faiss db")
+            return 
         if self.dataset_name not in ["ProntoQA","AR-LSAT","ProofWriter", "LogicalDeduction","FOLIO", "gsm8k"]:
             print(f"the wrong dataset {self.dataset_name} were provided. Ended the program!")
             return
@@ -262,8 +265,11 @@ class RandomRetriever(DatasetCons):
     def __init__(self, args):
         self.dataset_name = args.db_name
         self.data_path = "../rag_data"
-        self.ds_cot = args.ds_cot
-        self.split = args.db_split
+        if self.dataset_name in ["ProntoQA","AR-LSAT","ProofWriter", "LogicalDeduction","FOLIO"]:
+            self.ds_cot = True
+        elif self.dataset_name in["gsm8k",]:
+            self.ds_cot = False
+        self.split = "train"
         self.label_phrases = ["The correct option is:", "the correct option is:", "The final answer is:", "the final answer is:"]
         self.documents = self.retriever_init()
         pass
@@ -306,7 +312,7 @@ class RandomRetriever(DatasetCons):
                 options = metadata.get("options", "")
                 answer = metadata.get("answer", "")
                 cot = metadata.get("cot", "")
-                if self.db_name == "ProntoQA":
+                if self.dataset_name == "ProntoQA":
                     cot = metadata.get("cot") or metadata.get("explanation", "")
             else:
                 raise ValueError("the retriever method are not supported~!", self.dataset_name)
@@ -338,24 +344,25 @@ if __name__ == "__main__":
     # 构建langchain检索向量数据库
     # laska 修改使用逻辑语言来进行icl
     data_path = "../rag_data"
-    # dataset_cons = DatasetCons(args)
-    # dataset_cons.build_vector_store()
+    dataset_cons = DatasetCons(args)
+    dataset_cons.build_vector_store()
 
     # 利用构建好的检索向量数据库进行实验
-    # dataset_retriever = DatasetRetriever(args)
+    if args.db_type in ["bm25", "embedding"]:
+        dataset_retriever = DatasetRetriever(args)
+    else:
+        # 测试随机检索器
+        dataset_retriever = RandomRetriever(args)
+        # print(dir(dataset_retriever))
+        # print(type(dataset_retriever.documents))
+        # res = dataset_retriever.retrieve("")
+        # print(res)
+    # exit()
 
-    # 测试随机检索器
-    random_retriever = RandomRetriever(args)
-    # print(dir(random_retriever))
-    print(type(random_retriever.documents))
-    res = random_retriever.retrieve()
-    print(res)
-    exit()
-
-    context = "Jompuses are not shy. Jompuses are yumpuses. Each yumpus is aggressive. Each yumpus is a dumpus. Dumpuses are not wooden. Dumpuses are wumpuses. Wumpuses are red. Every wumpus is an impus. Each impus is opaque. Impuses are tumpuses. Numpuses are sour. Tumpuses are not sour. Tumpuses are vumpuses. Vumpuses are earthy. Every vumpus is a zumpus. Zumpuses are small. Zumpuses are rompuses. Max is a yumpus."
-    question = "Is the following statement true or false? Max is sour."
+    context = "The following paragraphs each describe a set of five objects arranged in a fixed order. The statements are logically consistent within each paragraph.\n\nIn an antique car show, there are five vehicles: a convertible, a sedan, a tractor, a minivan, and a limousine. The tractor is newer than the minivan. The tractor is older than the limousine. The convertible is older than the sedan. The convertible is the second-newest."
+    question = "Which of the following is true?"
     query = f"Context: {context}\nQuestion: {question}\n"
-    results = dataset_retriever.retrieve(query)
+    results = dataset_retriever.retrieve(query,3)
     print(results)
     print(len(results))
 

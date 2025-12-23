@@ -44,9 +44,9 @@ class LLM_Reasoning_Graph_Baseline:
         self.system_prompt_dir = args.system_prompt_dir
         self.user_template_dir = args.user_template_dir
         self.reverse_rag_order = args.reverse_rag_order
-        self.random_rag_order = args.random_rag_order
+        # self.random_rag_order = args.random_rag_order
         self.rerank = args.rerank
-        self.dtype = args.dtype
+        self.dtype = args.dtype    # float16/32
         # 对需要的部分数据进行初始化
         self.para_init()
 
@@ -81,11 +81,12 @@ class LLM_Reasoning_Graph_Baseline:
             self.rag_icl_num = args.icl_num   # 用于上下文学习的展示样例个数  
             self.db_name = args.db_name 
             self.index_path = args.index_path
-            if self.random_rag_order:
+            self.db_type = args.db_type
+            if self.db_type == "random":
+            # if self.random_rag_order:
                 self.dataset_retriever = RandomRetriever(self.args)
             else:
                 self.dataset_retriever = DatasetRetriever(self.args)
-            self.db_type = args.db_type
             # rag所用的icl template文件路径，用于包装检索到的document
             self.icl_template_file =  f"{'gsm8k' if self.db_name == 'gsm8k' else 'LogicalReasoning'}_ICL_template.txt"
             self.icl_template_path = os.path.join(self.user_template_dir, self.icl_template_file)
@@ -228,7 +229,6 @@ class LLM_Reasoning_Graph_Baseline:
         cone_batch_size =10
         ce_list = []
         n = len(chat_template_texts)
-
         for start in range(0, n, cone_batch_size):
             end = min(start + cone_batch_size, n)
             sub_texts = chat_template_texts[start:end]
@@ -297,6 +297,7 @@ class LLM_Reasoning_Graph_Baseline:
             ce_loss = torch.cat(ce_list, dim=0)
         # print(ce_loss)
         sorted_idx = torch.argsort(ce_loss)   # 默认升序
+        # print(sorted_idx)
         # exit()
         return sorted_idx 
 

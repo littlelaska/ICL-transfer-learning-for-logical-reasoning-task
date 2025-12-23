@@ -2,8 +2,8 @@ MODE="RAG"    # CoT/Direct/RAG/Logical
 DATASET_NAME="AR-LSAT"    # gsm8k/ProntoQA/AR-LSAT/FOLIO/ProofWriter/LogicalDeduction
 MODEL_NAME="qwen7"   # qwen14/qwen7/qwen3-8
 SPLIT="test"
-LANGCHAIN_DB="FOLIO"    # gsm8k//ProntoQA/FOLIO/ProofWriter/LogicalDeduction
-DB_TYPE="embedding"   # bm25/embedding
+LANGCHAIN_DB="gsm8k"    # gsm8k//ProntoQA/FOLIO/ProofWriter/LogicalDeduction
+DB_TYPE="random"   # bm25/embedding/random
 RAG_TOPK=10
 DEMONSTRATION_NUM=3
 ZERO_SHOT=true
@@ -14,7 +14,7 @@ CONE_RERANK=true
 
 LANGCHAIN_CMD="python dataset_cons.py --dataset_name $LANGCHAIN_DB --db_name $LANGCHAIN_DB --db_type $DB_TYPE --top_k $RAG_TOPK  --ds_cot --embedding_model $EMBDEDDING_MODEL"
 
-RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --db_type $DB_TYPE --dtype $DTYPE --batch_test --batch_size 1 --use_vllm --embedding_model $EMBDEDDING_MODEL "
+RUN_CMD="python llms_baseline.py --model_name $MODEL_NAME --dataset_name $DATASET_NAME --split $SPLIT --mode $MODE --max_new_tokens 8192 --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --top_k $RAG_TOPK --db_type $DB_TYPE --dtype $DTYPE --batch_test --batch_size 32 --embedding_model $EMBDEDDING_MODEL --all_data_switch --use_vllm"
 
 EVA_CMD="python evaluation.py --dataset_name $DATASET_NAME --model_name $MODEL_NAME --split $SPLIT --mode $MODE  --db_name $LANGCHAIN_DB --icl_num $DEMONSTRATION_NUM --db_type $DB_TYPE"
 
@@ -29,6 +29,7 @@ if [ "$REVERSE_FLAG" = true ] && [ "$MODE" = "RAG" ] && [ "$DEMONSTRATION_NUM" >
     EVA_CMD="$EVA_CMD --reverse_rag_order"
 fi
 
+
 if [ "$CONE_RERANK" = true ] && [ "$MODE" = "RAG" ]; then
     RUN_CMD="$RUN_CMD --rerank"
 fi
@@ -37,7 +38,7 @@ echo "Building the langchain_dataset, Running: $LANGCHAIN_CMD"
 $LANGCHAIN_CMD
 
 echo "Running: $RUN_CMD"
-CUDA_VISIBLE_DEVICES=1 $RUN_CMD
+CUDA_VISIBLE_DEVICES=2 $RUN_CMD
 
-echo "Running: $EVA_CMD"
-$EVA_CMD
+# echo "Running: $EVA_CMD"
+# $EVA_CMD
