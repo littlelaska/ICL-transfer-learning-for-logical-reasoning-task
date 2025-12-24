@@ -221,6 +221,7 @@ class DatasetRetriever:
     def retrieve(self, query, top_k=10):
         if self.db_type == "embedding":
             results = self.vector_store.similarity_search(query, k=top_k)
+            print("this is inside", len(results))
         elif self.db_type == "bm25":
             results = self.retriever.invoke(query)
         retrieve_list = []
@@ -250,6 +251,14 @@ class DatasetRetriever:
                 raise ValueError("the retriever method are not supported~!", self.dataset_name)
             # 如果检索的数据库和测试数据库是同一个，去掉和query相同的检索结果
             if question in query and context in query:
+                # print("~~~~~~~")
+                # print(question)
+                # print("---------")
+                # print(query)
+                # print("---------")
+                # print(context)
+                # print("~~~~~~~")
+                # print("去掉当前的检索结果！！！")
                 continue
             retrieve_list.append({
                 "context": context,
@@ -359,10 +368,10 @@ if __name__ == "__main__":
         # print(res)
     # exit()
 
-    context = "The following paragraphs each describe a set of five objects arranged in a fixed order. The statements are logically consistent within each paragraph.\n\nIn an antique car show, there are five vehicles: a convertible, a sedan, a tractor, a minivan, and a limousine. The tractor is newer than the minivan. The tractor is older than the limousine. The convertible is older than the sedan. The convertible is the second-newest."
-    question = "Which of the following is true?"
+    context = "The bear does not chase the lion. The bear visits the lion. The bear visits the tiger. The lion chases the bear. The lion chases the tiger. The lion visits the bear. The rabbit chases the tiger. The rabbit is big. The rabbit is not green. The rabbit is young. The rabbit visits the tiger. The tiger chases the rabbit. The tiger is rough. The tiger visits the bear. If something chases the bear and it sees the rabbit then the bear does not visit the rabbit. If something chases the lion then the lion is rough. If the rabbit chases the tiger and the tiger visits the rabbit then the rabbit is not big. If something chases the lion then the lion does not visit the tiger. If something chases the rabbit and it chases the tiger then the rabbit chases the bear. If something is young and it does not see the rabbit then it sees the bear. If something visits the lion then it is young. If the tiger visits the bear and the bear is big then the tiger visits the lion. Young things are big."
+    question = "Based on the above information, is the following statement true, false, or unknown? The bear visits the lion."
     query = f"Context: {context}\nQuestion: {question}\n"
-    results = dataset_retriever.retrieve(query,3)
+    results = dataset_retriever.retrieve(query,4)
     print(results)
     print(len(results))
 
