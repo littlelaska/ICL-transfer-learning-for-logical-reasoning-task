@@ -221,7 +221,7 @@ class DatasetRetriever:
     def retrieve(self, query, top_k=10):
         if self.db_type == "embedding":
             results = self.vector_store.similarity_search(query, k=top_k)
-            print("this is inside", len(results))
+#             print("this is inside", len(results))
         elif self.db_type == "bm25":
             results = self.retriever.invoke(query)
         retrieve_list = []
