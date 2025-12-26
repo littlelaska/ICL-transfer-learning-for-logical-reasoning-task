@@ -159,26 +159,60 @@ def print_cloud_responses_help() -> None:
 
 def api(TASK_KEY: str, task_content: str) -> Optional[str]:
     """
-    等价 Java: public static String api(String TASK_KEY, String taskContent)
-    - 重试 3 次
-    - 若 isNullish(output) 则继续重试；否则立即返回
-    - 全部失败返回 None
+    通用云端调用封装：
+    - 使用 TASK_KEY + task_content 向云端发送任务；
+    - 每轮内部最多重试 RETRY 次；
+    - 如果连续 RETRY 次都拿到“空结果”（None / "" / "null" 等），
+      则认为云端可能宕机或异常，暂停程序，等待人工干预：
+        * 在命令行打印提示信息；
+        * 阻塞等待用户输入任意内容回车；
+        * 然后再重新进行一轮 RETRY 次尝试。
+    - 只有在拿到“非空且非 nullish”的输出时才返回该结果。
+    - 若用户希望终止程序，可以直接 Ctrl+C 或关闭窗口。
     """
-    # Java 原文：const int retry = 3;  // Python 采用同义常量
-    RETRY = 3
+    RETRY = 10          # 每轮最多重试次数
+    backoff = 1.5       # 初始退避时间（秒）
+    max_backoff = 20.0  # 最大退避时间（秒）
 
-    for _ in range(RETRY):
-        output = send_task(TASK_KEY, task_content)
+    # 外层无限循环：
+    # - 正常情况下，某一轮内部的 RETRY 次尝试中就会成功并 return；
+    # - 若这一轮连续 RETRY 次都失败，则进入“人工确认”阶段，等待用户输入后再进行下一轮。
+    while True:
+        for attempt in range(1, RETRY + 1):
+            try:
+                output = send_task(TASK_KEY, task_content)
+            except Exception as e:
+                # send_task 自身抛异常时也视为一次“失败”
+                print(f"[WARN] send_task 发生异常（第 {attempt}/{RETRY} 次）：{e}")
+                output = None
 
-        if is_nullish(output):
-            # 若返回空字串（或“null”等价），则尝试重发
-            continue
-        else:
-            # 否则返回结果
-            return output
+            # 判断返回是否“空结果”
+            if not is_nullish(output):
+                # ✅ 拿到有效结果，直接返回
+                return output
 
-    # 若多次重发依旧得到失败结果，则返回空（Python 对齐 Java 的 null → None）
-    return None
+            # 走到这里说明当前这一轮返回了“空结果”
+            print(
+                f"[WARN] 云端任务（key={TASK_KEY}）返回空结果 "
+                f"（第 {attempt}/{RETRY} 次），将在 {backoff:.1f}s 后重试…"
+            )
+            time.sleep(backoff)
+            backoff = min(max_backoff, backoff * 1.7)  # 退避时间逐渐拉长，直至 max_backoff
+
+        # === 若执行到这里，说明本轮连续 RETRY 次都拿到“空结果” ===
+        # 认为云端可能宕机 / 网络异常，进入“人工干预等待”阶段
+        print("\n[ERROR] 云端接口连续多次（{0} 次）返回空结果，可能服务已宕机或网络异常。".format(RETRY))
+        print("请立即检查并修复云端服务（如重启 DeepSeek / ChatGPT 代理 / 中转服务等）。")
+        print("确认云端服务已恢复正常后，在此命令行窗口输入任意内容并按回车继续重试。")
+        print("若暂时不想继续本次任务，可直接关闭窗口或按 Ctrl+C 中断程序。\n")
+
+        # 阻塞等待用户输入，起到“人工确认后再继续”的效果
+        _ = input(">>> 云端已修复？请输入任意字符后按回车以继续重试：")
+
+        # 用户输入后：重新回到 while True 顶部，再进行新的一轮 RETRY 次尝试
+        # 注：这里不返回 None，而是通过下一轮尝试来获得正常结果
+        # backoff 重置
+        backoff = 1.5
 
 
 def _can_reach(host: str, port: int, timeout: float = 2.0) -> bool:
@@ -234,7 +268,8 @@ if __name__ == "__main__":
 
     # === 对话接口 ===
     key = "TnumU6cM" #服务密钥
-    command = "[create_conversation=true]" # 新建对话指令（若想避免历史信息干扰，则每次都把这个command加入到query中）【注意：至少每5-10次query就新建一次对话，以此规避大模型厂商的反扒措施，另外格式不要变，不会影响你的提问，这条指令是给爬虫系统看的，收到这条指令就会在后台新建对话】
+    key = "mY61VVV5"
+    # command = "[create_conversation=true]" # 新建对话指令（若想避免历史信息干扰，则每次都把这个command加入到query中）【注意：至少每5-10次query就新建一次对话，以此规避大模型厂商的反扒措施，另外格式不要变，不会影响你的提问，这条指令是给爬虫系统看的，收到这条指令就会在后台新建对话】
     query = "请问最近国际上有什么大事发生？\n请给出一周以内的信息。" # query（举例）
 
     # laska 10.27测试用模型进行逻辑表达式的生成和推理
@@ -243,5 +278,6 @@ if __name__ == "__main__":
     if instruction != "":
         query = instruction + "\n\n" + query
 
-    result = api(key, query + command) # 函数api()第一个参数为密钥，第二个参数为发送数据
+    # result = api(key, query + command) # 函数api()第一个参数为密钥，第二个参数为发送数据
+    result = api(key, query) # 函数api()第一个参数为密钥，第二个参数为发送数据
     print("\n[收到结果]：\n{}".format(result))

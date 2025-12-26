@@ -113,9 +113,10 @@ class DatasetCotGen:
                 options = "\n".join(opt.strip() for opt in item['options'])
                 request_query = self.task_instruction + f"Context:\n{context}\n\nQuestion: {question}\n\nOptions:\n {options}\n\n The correct option is:"
             
-            command = "[create_conversation=true]"
+            # command = "[create_conversation=true]"
             # 调用接口获得结果
-            result = cloud_task_client.api(self.api_key, request_query + command)
+            # result = cloud_task_client.api(self.api_key, request_query + command)
+            result = cloud_task_client.api(self.api_key, request_query)
             print("\n[收到结果]：\n{}".format(result))
             
             item["reasoning_cot"] = result  # 将结果添加到当前数据项中
@@ -126,5 +127,5 @@ class DatasetCotGen:
 
 
 if __name__ == "__main__":
-    dataset_cot_gen = DatasetCotGen(dataset_name="gsm8k", split="train", all_data_switch=False, save_path="./results/")
+    dataset_cot_gen = DatasetCotGen(dataset_name="AR-LSAT", split="train", all_data_switch=False, save_path="./results/")
     dataset_cot_gen.retrieve_query_res(all_data_switch=True)
