@@ -21,6 +21,10 @@ class DatasetCons:
         self.dataset_name = args.dataset_name
         self.data_path = "../rag_data"
         self.ds_cot = args.ds_cot    # 这个参数主要是针对gsm8k和ProntoQA数据集，这两个数据集有自己的cot，该参数设置为true时，就使用ds接口生成的cot来构建langchian数据集，为false时，使用这两个数据集默认的cot
+        if self.dataset_name in ["ProntoQA","AR-LSAT","ProofWriter", "LogicalDeduction","FOLIO"]:
+            self.ds_cot = True
+        elif self.dataset_name in["gsm8k",]:
+            self.ds_cot = False
         # self.embedding_path = "../llms/text2vec-large-chinese"
         # self.embedding_path = "../llms/bge-large-en"
         # self.embedding_path = "../llms/bge-large-en-v1.5"
@@ -288,7 +292,7 @@ class RandomRetriever(DatasetCons):
             print(f"the wrong dataset {self.dataset_name} were provided. Ended the program!")
             return
         # 加载调用deepseek端口的cot
-        if self.ds_cot==True and self.dataset_name in ["ProntoQA","AR-LSAT","ProofWriter", "LogicalDeduction","FOLIO"]:
+        if self.ds_cot==True and self.dataset_name in ["AR-LSAT","ProofWriter", "LogicalDeduction","FOLIO"]:
             load_fn = self.logical_task_common_cot_load_data
         elif self.dataset_name in ["gsm8k", "ProntoQA"]:
             load_fn = getattr(self, f"{self.dataset_name}_load_data")
