@@ -10,13 +10,13 @@ BATCH_SIZE=32
 MAX_NEW_TOKENS=8192
 ZERO_SHOT=false                # 这里只跑 1–4 shot，所以不启用 zero-shot
 DTYPE="float16"
-DB_TYPE="bm25"              # bm25  / embedding  /  random
+DB_TYPE="random"              # bm25  / embedding  /  random
 EMBDEDDING_MODEL="../llms/bge-large-en-v1.5"   # text2vec-large-chinese/bge-large-en/bge-large-en-v1.5
 REVERSE_FLAG=false
-CONE_RERANK=false
+CONE_RERANK=true
 
 # 源域（demo 来源）
-SOURCE_DOMAINS=("AR-LSAT")    # "gsm8k" "ProntoQA" "AR-LSAT" "ProofWriter" "FOLIO" "LogicalDeduction"
+SOURCE_DOMAINS=("gsm8k" "ProntoQA" "AR-LSAT" "ProofWriter" "FOLIO" "LogicalDeduction")    # "gsm8k" "ProntoQA" "AR-LSAT" "ProofWriter" "FOLIO" "LogicalDeduction"
  
 # 目标域（评测数据集）
 TARGET_DOMAINS=("LogicalDeduction")
@@ -133,7 +133,7 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         echo "-------------------------------------------"
         ${LANGCHAIN_CMD}
         echo "-------------------------------------------"
-        CUDA_VISIBLE_DEVICES=0,1,2,3 ${RUN_CMD}
+        CUDA_VISIBLE_DEVICES=1 ${RUN_CMD}
         
         echo "================ EVAL START ================"
         echo "[CMD] ${EVA_CMD}"
