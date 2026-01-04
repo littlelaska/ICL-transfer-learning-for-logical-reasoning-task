@@ -31,7 +31,7 @@ To replicate the results show in the paper, please run the following commands:
 
 ```bash
 cd ./baselines
-bash run_yanjzh.sh
+bash run_batch.sh
 ```
 
 This [run_batch.sh](xxx) script provides a unified interface for **batch-running cross-domain ICL experiments**. By configuring options inside the script, you can automatically run multiple experiments across, The major parameters and their possible values are as follows:
