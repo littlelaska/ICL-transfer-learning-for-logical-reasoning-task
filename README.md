@@ -34,7 +34,7 @@ cd ./baselines
 bash run_yanjzh.sh
 ```
 
-This [run_yanjzh.sh](xxx) script provides a unified interface for **batch-running cross-domain ICL experiments**. By configuring options inside the script, you can automatically run multiple experiments across, The major parameters and their possible values are as follows:
+This [run_batch.sh](xxx) script provides a unified interface for **batch-running cross-domain ICL experiments**. By configuring options inside the script, you can automatically run multiple experiments across, The major parameters and their possible values are as follows:
 :
 
 - **MODEL_NAME**: The basic model used in this batch of test. (e.g., *Qwen2.5-7B*, *Gemma3-27B*, etc.)  
