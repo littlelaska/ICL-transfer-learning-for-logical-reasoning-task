@@ -4,16 +4,16 @@
 # 固定配置（按需改）
 # ==============================
 MODE="RAG"                     # CoT / Direct / RAG / Logical
-MODEL_NAME="qwen7"            # 给定模型
+MODEL_NAME="qwen14"            # 给定模型
 RAG_TOPK=10
-BATCH_SIZE=32
+BATCH_SIZE=64
 MAX_NEW_TOKENS=8192
 ZERO_SHOT=false                # 这里只跑 1–4 shot，所以不启用 zero-shot
 DTYPE="float16"
-DB_TYPE="random"              # bm25  / embedding  /  random
+DB_TYPE="bm25"              # bm25  / embedding  /  random
 EMBDEDDING_MODEL="../llms/bge-large-en-v1.5"   # text2vec-large-chinese/bge-large-en/bge-large-en-v1.5
 REVERSE_FLAG=false
-CONE_RERANK=true
+CONE_RERANK=false
 
 # 源域（demo 来源）
 SOURCE_DOMAINS=("gsm8k" "ProntoQA" "AR-LSAT" "ProofWriter" "FOLIO" "LogicalDeduction")    # "gsm8k" "ProntoQA" "AR-LSAT" "ProofWriter" "FOLIO" "LogicalDeduction"
@@ -65,6 +65,9 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
       LOG_DIR="logs/${MODEL_NAME}/${MODE}/${SRC}__${TGT}"
       if [ "${MODE}" = "RAG" ]; then
         LOG_DIR="logs/${MODEL_NAME}/${MODE}_${DB_TYPE}/${SRC}__${TGT}"
+      fi
+      if [ "$CONE_RERANK" = true ] && [ "$MODE" = "RAG" ]; then
+        LOG_DIR="logs/${MODEL_NAME}/${MODE}_cone_${DB_TYPE}/${SRC}__${TGT}"
       fi
       mkdir -p "${LOG_DIR}"
       LOG_FILE="${LOG_DIR}/shot${SHOT}.log"
@@ -133,7 +136,7 @@ for SRC in "${SOURCE_DOMAINS[@]}"; do
         echo "-------------------------------------------"
         ${LANGCHAIN_CMD}
         echo "-------------------------------------------"
-        CUDA_VISIBLE_DEVICES=1 ${RUN_CMD}
+        CUDA_VISIBLE_DEVICES=1,3 ${RUN_CMD}
         
         echo "================ EVAL START ================"
         echo "[CMD] ${EVA_CMD}"
